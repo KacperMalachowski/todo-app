@@ -1,6 +1,5 @@
 jobs:
   - job: test
-    displayName: Test Job
     steps:
       - checkout: self
 
