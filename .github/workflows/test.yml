@@ -20,6 +20,6 @@ jobs:
 
       - run: dotnet restore
 
-      - run: dotnet build --no-restore
+      - run: dotnet build **/*.csproj --no-restore
 
-      - run: dotnet test --no-build
+      - run: dotnet test **/*.csproj --no-build
