@@ -1,0 +1,64 @@
+stages:
+  - static
+  - test
+  - build
+  - deploy
+
+variables:
+  GCP_PROJECT_ID: malachowski-personal-ai
+  GCP_BUCKET_NAME: deiploma/gitlab/todo-app
+  GCP_SERVICE_ACCOUNT: gitlab@malachowski-personal-ai.iam.gserviceaccount.com
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/941627704467/locations/global/workloadIdentityPools/diploma/providers/gitlab
+
+static:
+  stage: static
+  image: mcr.microsoft.com/dotnet/sdk:8.0
+  script:
+    - dotnet tool restore
+    - dotnet format --verify-no-changes
+
+test:
+  stage: test
+  image: mcr.microsoft.com/dotnet/sdk:8.0
+  script:
+    - dotnet restore
+    - dotnet build --no-restore
+    - dotnet test --no-build
+
+build:
+  stage: build
+  image: mcr.microsoft.com/dotnet/sdk:8.0
+  script:
+    - dotnet publish -c Release -o out
+  artifacts:
+    paths:
+      - out/
+
+deploy:
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://sts.googleapis.com/
+  stage: deploy
+  image: google/cloud-sdk:alpine
+  dependencies:
+    - build
+  before_script:
+    - |
+      cat > /tmp/gcp-credentials.json << EOF
+      {
+        "type": "external_account",
+        "audience": "//iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}",
+        "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+        "token_url": "https://sts.googleapis.com/v1/token",
+        "credential_source": {
+          "file": "/tmp/gitlab_oidc_token.txt"
+        },
+        "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${GCP_SERVICE_ACCOUNT}:generateAccessToken"
+      }
+      EOF
+    - echo $GITLAB_OIDC_TOKEN > /tmp/gitlab_oidc_token.txt
+    - gcloud auth login --cred-file=/tmp/gcp-credentials.json
+    - gcloud config set project ${GCP_PROJECT_ID}
+    - gcloud config set run/region us-central1
+  script:
+    - gcloud storage cp --recursive out/ gs://${GCP_BUCKET_NAME}/v${CI_COMMIT_SHORT_SHA}/

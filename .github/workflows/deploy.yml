@@ -1,0 +1,60 @@
+name: Build and Deploy to GCP Bucket
+
+on:
+  push:
+    branches:
+      - main
+  pull_request_target:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish project
+        run: dotnet publish -c Release -o publish
+
+      - name: Upload published files
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: publish/
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download published files
+        uses: actions/download-artifact@v4
+        with:
+          name: published-app
+          path: publish/
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        id: auth
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - uses: google-github-actions/upload-cloud-storage@2
+        with:
+          path: publish/
+          bucket: deiploma/github/todo-app/v${{ github.sha }}/

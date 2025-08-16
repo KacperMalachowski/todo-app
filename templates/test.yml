@@ -1,0 +1,19 @@
+jobs:
+  - job: test
+    displayName: Test Job
+    steps:
+      - checkout: self
+
+      - task: UseDotNet@2
+        displayName: 'Install .NET SDK'
+        inputs:
+          version: 9.x
+          performMultiLevelLookup: true
+          includePreviewVersions: true
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Install .NET SDK'
+        inputs:
+          command: 'test'
+          projects: '**/*Tests/*.csproj'
+          arguments: '--configuration Release'

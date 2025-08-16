@@ -1,0 +1,26 @@
+jobs:
+  - job: static
+    displayName: Static Analysis
+    steps:
+      - checkout: self
+
+      - task: UseDotNet@2
+        displayName: 'Install .NET SDK'
+        inputs:
+          version: 9.x
+          performMultiLevelLookup: true
+          includePreviewVersions: true
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Install .NET SDK'
+        inputs:
+          command: 'custom'
+          custom: 'tool'
+          arguments: 'install -g dotnet-format'
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Run dotnet format'
+        inputs:
+          command: 'custom'
+          custom: 'format'
+          arguments: '--check --verbosity diagnostic'

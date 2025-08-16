@@ -1,0 +1,73 @@
+jobs:
+  - job: build
+    displayName: Build Job
+    steps:
+      - checkout: self
+
+      - task: UseDotNet@2
+        displayName: "Install .NET SDK"
+        inputs:
+          version: 9.x
+          performMultiLevelLookup: true
+          includePreviewVersions: true
+
+      - task: DotNetCoreCLI@2
+        inputs:
+          command: "build"
+          projects: "**/*.csproj"
+          arguments: "--configuration Release"
+
+  - job: deploy
+    dependsOn: build
+    condition: and(succeeded(), ne(variables['Build.BuildReason'], 'PullRequest'))
+    steps:
+      - checkout: self
+
+      - task: UseDotNet@2
+        displayName: "Install .NET SDK"
+        inputs:
+          version: 9.x
+          performMultiLevelLookup: true
+          includePreviewVersions: true
+
+      - task: DotNetCoreCLI@2
+        inputs:
+          command: "publish"
+          projects: "**/*.csproj"
+          arguments: "--configuration Release --output $(Build.ArtifactStagingDirectory)"
+          zipAfterPublish: true
+
+      - task: Bash@3
+        inputs:
+          targetType: inline
+          script: |
+            set -e
+
+            echo "Create GCP service account key"
+            echo $(gcp-sa) | base64 --decode > ./gcp-key.json
+
+      - task: Bash@3
+        inputs:
+          targetType: inline
+          script: |
+            set -e
+
+            wget https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz
+            tar zxvf google-cloud-sdk.tar.gz && ./google-cloud-sdk/install.sh --quiet --usage-reporting=false --path-update=true
+            PATH="google-cloud-sdk/bin:${PATH}"
+            gcloud components update
+
+            yes | gcloud components install beta
+
+            gcloud auth activate-service-account --key-file=gcp-key.json
+
+      - task: Bash@3
+        inputs:
+          targetType: inline
+          script: |
+            set -e
+
+            DATE=$(date +%Y.%m.%d)
+
+            echo "Pushing to GCP Cloud Bucket"
+            gcloud storage cp --recursive $(Build.ArtifactStagingDirectory) gs://deiploma/azure/todo-app/v${DATE}.$(Build.BuildId)/
