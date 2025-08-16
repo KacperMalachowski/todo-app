@@ -33,7 +33,7 @@ jobs:
       - task: DotNetCoreCLI@2
         inputs:
           command: "publish"
-          projects: "**/*app/*.csproj"
+          projects: "*app/*.csproj"
           arguments: "--configuration Release --output $(Build.ArtifactStagingDirectory)"
           zipAfterPublish: true
 

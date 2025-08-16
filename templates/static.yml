@@ -23,4 +23,5 @@ jobs:
         inputs:
           command: "custom"
           custom: "format"
-          arguments: "**/*app/*.csproj --verify-no-changes"
+          projects: "**/*app/*.csproj"
+          arguments: "--verify-no-changes"
