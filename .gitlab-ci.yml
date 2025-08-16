@@ -15,21 +15,21 @@ static:
   image: mcr.microsoft.com/dotnet/sdk:8.0
   script:
     - dotnet tool install -g dotnet-format
-    - dotnet format **/*app/*.csproj --verify-no-changes
+    - dotnet format *app/*.csproj --verify-no-changes
 
 test:
   stage: test
   image: mcr.microsoft.com/dotnet/sdk:8.0
   script:
     - dotnet restore
-    - dotnet build **/*Tests/*.csproj --no-restore
-    - dotnet test **/*Tests/*.csproj --no-build
+    - dotnet build *Tests/*.csproj --no-restore
+    - dotnet test *Tests/*.csproj --no-build
 
 build:
   stage: build
   image: mcr.microsoft.com/dotnet/sdk:8.0
   script:
-    - dotnet publish **/*app/*.csproj -c Release -o out
+    - dotnet publish *app/*.csproj -c Release -o out
   artifacts:
     paths:
       - out/
