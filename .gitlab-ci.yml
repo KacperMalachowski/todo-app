@@ -12,22 +12,21 @@ variables:
 
 static:
   stage: static
-  image: mcr.microsoft.com/dotnet/sdk:8.0
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - dotnet tool install -g dotnet-format
     - dotnet format *app/*.csproj --verify-no-changes
 
 test:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:8.0
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
-    - dotnet restore
-    - dotnet build *Tests/*.csproj --no-restore
+    - dotnet build *Tests/*.csproj
     - dotnet test *Tests/*.csproj --no-build
 
 build:
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:8.0
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   script:
     - dotnet publish *app/*.csproj -c Release -o out
   artifacts:
