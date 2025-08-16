@@ -28,8 +28,6 @@
       "matchPackageNames": ["*"],
       "automerge": true,
       "semanticCommitType": "chore",
-      "groupName": "Non-major updates",
-      "groupSlug": "non-major-updates"
     },
     {
       "matchManagers": ["github-actions"],
