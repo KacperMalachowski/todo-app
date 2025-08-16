@@ -35,6 +35,7 @@ jobs:
           command: "publish"
           projects: "**/*app/*.csproj"
           arguments: "--configuration Release --output $(Build.ArtifactStagingDirectory)"
+          publishWebProjects: false
           zipAfterPublish: true
 
       - task: Bash@3
