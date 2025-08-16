@@ -1,6 +1,5 @@
 jobs:
   - job: static
-    displayName: Static Analysis
     steps:
       - checkout: self
 
