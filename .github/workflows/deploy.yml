@@ -24,10 +24,10 @@ jobs:
         run: dotnet restore
 
       - name: Build project
-        run: dotnet build **/*.csproj --configuration Release --no-restore
+        run: dotnet build **/*app/*.csproj --configuration Release --no-restore
 
       - name: Publish project
-        run: dotnet publish **/*.csproj -c Release -o publish
+        run: dotnet publish **/*app/*.csproj -c Release -o publish
 
       - name: Upload published files
         uses: actions/upload-artifact@v4
