@@ -61,3 +61,5 @@ deploy:
     - gcloud config set run/region us-central1
   script:
     - gcloud storage cp --recursive out/ gs://${GCP_BUCKET_NAME}/v${CI_COMMIT_SHORT_SHA}/
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
