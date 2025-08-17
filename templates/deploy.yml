@@ -18,7 +18,7 @@ jobs:
 
   - job: deploy
     dependsOn: build
-    condition: and(succeeded(), ne(variables['Build.BuildReason'], 'PullRequest'))
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     steps:
       - checkout: self
 
