@@ -346,7 +346,7 @@ public class TodoServiceTests
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() => service.EditTask(task.Id, invalidTitle!));
-        
+
         // Verify original title is unchanged
         Assert.Equal("Original Title", task.Title);
     }

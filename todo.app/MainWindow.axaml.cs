@@ -34,7 +34,7 @@ public partial class MainWindow : Window
         // Initialize the display
         UpdateFilterButtonStyles();
         UpdateStatistics();
-        
+
         // Load saved tasks
         _ = LoadTasksAsync();
     }
