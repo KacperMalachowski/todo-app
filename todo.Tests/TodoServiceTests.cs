@@ -281,4 +281,90 @@ public class TodoServiceTests
         Assert.Equal(2, service.CompletedTaskCount);
         Assert.Equal(0, service.PendingTaskCount);
     }
+
+    [Fact]
+    public void EditTask_WithValidIdAndTitle_ShouldUpdateTask()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Original Title");
+        const string newTitle = "Updated Title";
+
+        // Act
+        var result = service.EditTask(task.Id, newTitle);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(newTitle, task.Title);
+        var retrievedTask = service.GetTask(task.Id);
+        Assert.NotNull(retrievedTask);
+        Assert.Equal(newTitle, retrievedTask.Title);
+    }
+
+    [Fact]
+    public void EditTask_WithWhitespaceTitle_ShouldTrimAndUpdateTask()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Original Title");
+        const string newTitle = "  Updated Title  ";
+        const string expectedTitle = "Updated Title";
+
+        // Act
+        var result = service.EditTask(task.Id, newTitle);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(expectedTitle, task.Title);
+    }
+
+    [Fact]
+    public void EditTask_WithInvalidId_ShouldReturnFalse()
+    {
+        // Arrange
+        var service = new TodoService();
+        var invalidId = Guid.NewGuid();
+
+        // Act
+        var result = service.EditTask(invalidId, "New Title");
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void EditTask_WithInvalidTitle_ShouldThrowArgumentException(string? invalidTitle)
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Original Title");
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => service.EditTask(task.Id, invalidTitle!));
+        
+        // Verify original title is unchanged
+        Assert.Equal("Original Title", task.Title);
+    }
+
+    [Fact]
+    public void EditTask_ShouldNotAffectTaskCompletionStatus()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Original Title");
+        task.MarkAsCompleted();
+        var originalCompletedAt = task.CompletedAt;
+
+        // Act
+        var result = service.EditTask(task.Id, "Updated Title");
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Updated Title", task.Title);
+        Assert.True(task.IsCompleted);
+        Assert.Equal(originalCompletedAt, task.CompletedAt);
+    }
 }

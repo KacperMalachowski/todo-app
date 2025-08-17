@@ -108,6 +108,29 @@ public class TodoService
     }
 
     /// <summary>
+    /// Updates the title of an existing task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to edit</param>
+    /// <param name="newTitle">The new title for the task</param>
+    /// <returns>True if the task was found and updated, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when newTitle is null, empty, or whitespace</exception>
+    public bool EditTask(Guid taskId, string newTitle)
+    {
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(newTitle));
+        }
+
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            task.UpdateTitle(newTitle.Trim());
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Clears all tasks from the service
     /// </summary>
     public void ClearAllTasks()

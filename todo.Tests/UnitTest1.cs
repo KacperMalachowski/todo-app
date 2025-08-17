@@ -85,4 +85,70 @@ public class TodoTaskTests
         Assert.False(task.IsCompleted);
         Assert.Null(task.CompletedAt);
     }
+
+    [Fact]
+    public void UpdateTitle_WithValidTitle_ShouldUpdateTitle()
+    {
+        // Arrange
+        var task = new TodoTask("Original Title");
+        const string newTitle = "Updated Title";
+
+        // Act
+        task.UpdateTitle(newTitle);
+
+        // Assert
+        Assert.Equal(newTitle, task.Title);
+    }
+
+    [Fact]
+    public void UpdateTitle_WithWhitespaceTitle_ShouldUpdateTitle()
+    {
+        // Arrange
+        var task = new TodoTask("Original Title");
+        const string newTitle = "  Updated Title  ";
+
+        // Act
+        task.UpdateTitle(newTitle);
+
+        // Assert
+        Assert.Equal(newTitle, task.Title);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void UpdateTitle_WithInvalidTitle_ShouldThrowArgumentException(string? invalidTitle)
+    {
+        // Arrange
+        var task = new TodoTask("Original Title");
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => task.UpdateTitle(invalidTitle!));
+        
+        // Verify original title is unchanged
+        Assert.Equal("Original Title", task.Title);
+    }
+
+    [Fact]
+    public void UpdateTitle_ShouldNotAffectOtherProperties()
+    {
+        // Arrange
+        var task = new TodoTask("Original Title");
+        task.MarkAsCompleted();
+        var originalId = task.Id;
+        var originalCreatedAt = task.CreatedAt;
+        var originalCompletedAt = task.CompletedAt;
+        var originalIsCompleted = task.IsCompleted;
+
+        // Act
+        task.UpdateTitle("New Title");
+
+        // Assert
+        Assert.Equal("New Title", task.Title);
+        Assert.Equal(originalId, task.Id);
+        Assert.Equal(originalCreatedAt, task.CreatedAt);
+        Assert.Equal(originalCompletedAt, task.CompletedAt);
+        Assert.Equal(originalIsCompleted, task.IsCompleted);
+    }
 }
