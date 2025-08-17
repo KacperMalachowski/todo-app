@@ -13,7 +13,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _tasks = new List<TodoTask>();
-        
+
         // Wire up the button click event
         AddTaskButton.Click += OnAddTaskButtonClick;
     }
@@ -21,7 +21,7 @@ public partial class MainWindow : Window
     private void OnAddTaskButtonClick(object? sender, RoutedEventArgs e)
     {
         var taskText = NewTaskTextBox.Text?.Trim();
-        
+
         if (string.IsNullOrEmpty(taskText))
         {
             return; // Don't add empty tasks
