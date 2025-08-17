@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using todo.app.Services;
 using Xunit;
 
@@ -366,5 +368,200 @@ public class TodoServiceTests
         Assert.Equal("Updated Title", task.Title);
         Assert.True(task.IsCompleted);
         Assert.Equal(originalCompletedAt, task.CompletedAt);
+    }
+
+    // Persistence Tests
+    private string GetTestFilePath()
+    {
+        return Path.Combine(Path.GetTempPath(), $"test_service_{Guid.NewGuid()}.json");
+    }
+
+    [Fact]
+    public async Task LoadTasksAsync_ShouldLoadTasksFromPersistence()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+
+        try
+        {
+            // Add some tasks directly to persistence
+            var tasks = new List<todo.app.Models.TodoTask>
+            {
+                new("Task 1"),
+                new("Task 2")
+            };
+            await persistenceService.SaveTasksAsync(tasks);
+
+            // Act
+            await service.LoadTasksAsync();
+
+            // Assert
+            Assert.Equal(2, service.TotalTaskCount);
+            Assert.Contains(service.Tasks, t => t.Title == "Task 1");
+            Assert.Contains(service.Tasks, t => t.Title == "Task 2");
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AddTaskAsync_ShouldAddTaskAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+
+        try
+        {
+            // Act
+            var task = await service.AddTaskAsync("Test Task");
+
+            // Assert
+            Assert.Equal("Test Task", task.Title);
+            Assert.Single(service.Tasks);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Single(loadedTasks);
+            Assert.Equal("Test Task", loadedTasks[0].Title);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RemoveTaskAsync_ShouldRemoveTaskAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        var task = await service.AddTaskAsync("Test Task");
+
+        try
+        {
+            // Act
+            var result = await service.RemoveTaskAsync(task.Id);
+
+            // Assert
+            Assert.True(result);
+            Assert.Empty(service.Tasks);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Empty(loadedTasks);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ToggleTaskCompletionAsync_ShouldToggleAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        var task = await service.AddTaskAsync("Test Task");
+
+        try
+        {
+            // Act
+            var result = await service.ToggleTaskCompletionAsync(task.Id);
+
+            // Assert
+            Assert.True(result);
+            Assert.True(task.IsCompleted);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Single(loadedTasks);
+            Assert.True(loadedTasks[0].IsCompleted);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task EditTaskAsync_ShouldEditTaskAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        var task = await service.AddTaskAsync("Original Title");
+
+        try
+        {
+            // Act
+            var result = await service.EditTaskAsync(task.Id, "Updated Title");
+
+            // Assert
+            Assert.True(result);
+            Assert.Equal("Updated Title", task.Title);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Single(loadedTasks);
+            Assert.Equal("Updated Title", loadedTasks[0].Title);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AsyncMethods_WithNonExistentTask_ShouldReturnFalseAndNotSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        var invalidId = Guid.NewGuid();
+
+        try
+        {
+            // Act & Assert
+            Assert.False(await service.RemoveTaskAsync(invalidId));
+            Assert.False(await service.ToggleTaskCompletionAsync(invalidId));
+            Assert.False(await service.EditTaskAsync(invalidId, "New Title"));
+
+            // Verify no file was created
+            Assert.False(File.Exists(testFile));
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
     }
 }

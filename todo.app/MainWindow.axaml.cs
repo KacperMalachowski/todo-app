@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -33,9 +34,26 @@ public partial class MainWindow : Window
         // Initialize the display
         UpdateFilterButtonStyles();
         UpdateStatistics();
+        
+        // Load saved tasks
+        _ = LoadTasksAsync();
     }
 
-    private void OnAddTaskButtonClick(object? sender, RoutedEventArgs e)
+    private async Task LoadTasksAsync()
+    {
+        try
+        {
+            await _todoService.LoadTasksAsync();
+            RefreshTaskList();
+            UpdateStatistics();
+        }
+        catch (Exception)
+        {
+            // Handle loading errors gracefully - could show user message in future
+        }
+    }
+
+    private async void OnAddTaskButtonClick(object? sender, RoutedEventArgs e)
     {
         var taskText = NewTaskTextBox.Text?.Trim();
 
@@ -46,8 +64,8 @@ public partial class MainWindow : Window
 
         try
         {
-            // Use the service to add the task
-            _todoService.AddTask(taskText);
+            // Use the async service to add the task (auto-saves)
+            await _todoService.AddTaskAsync(taskText);
 
             // Clear the input field
             NewTaskTextBox.Text = string.Empty;
@@ -60,6 +78,10 @@ public partial class MainWindow : Window
         {
             // Handle invalid input (though we check above, this is defensive)
             // Could show an error message to user in the future
+        }
+        catch (Exception)
+        {
+            // Handle persistence errors gracefully
         }
     }
 
@@ -94,13 +116,21 @@ public partial class MainWindow : Window
             };
 
             // Handle checkbox change event
-            checkBox.IsCheckedChanged += (sender, e) =>
+            checkBox.IsCheckedChanged += async (sender, e) =>
             {
-                // Use the service to toggle task completion
-                _todoService.ToggleTaskCompletion(task.Id);
+                try
+                {
+                    // Use the async service to toggle task completion (auto-saves)
+                    await _todoService.ToggleTaskCompletionAsync(task.Id);
 
-                // Update the visual state
-                RefreshTaskList();
+                    // Update the visual state
+                    RefreshTaskList();
+                    UpdateStatistics();
+                }
+                catch (Exception)
+                {
+                    // Handle persistence errors gracefully
+                }
             };
 
             // Create text block with strikethrough if completed
@@ -139,14 +169,21 @@ public partial class MainWindow : Window
             };
 
             // Handle delete button click
-            deleteButton.Click += (sender, e) =>
+            deleteButton.Click += async (sender, e) =>
             {
-                // Use the service to remove the task
-                _todoService.RemoveTask(task.Id);
+                try
+                {
+                    // Use the async service to remove the task (auto-saves)
+                    await _todoService.RemoveTaskAsync(task.Id);
 
-                // Update the UI
-                RefreshTaskList();
-                UpdateStatistics();
+                    // Update the UI
+                    RefreshTaskList();
+                    UpdateStatistics();
+                }
+                catch (Exception)
+                {
+                    // Handle persistence errors gracefully
+                }
             };
 
             // Add checkbox, text, and delete button to stack panel
@@ -241,7 +278,7 @@ public partial class MainWindow : Window
         {
             if (e.Key == Avalonia.Input.Key.Enter)
             {
-                FinishEditingTask(task, editBox.Text?.Trim() ?? string.Empty);
+                _ = FinishEditingTaskAsync(task, editBox.Text?.Trim() ?? string.Empty);
             }
             else if (e.Key == Avalonia.Input.Key.Escape)
             {
@@ -252,7 +289,7 @@ public partial class MainWindow : Window
         // Handle lost focus
         editBox.LostFocus += (sender, e) =>
         {
-            FinishEditingTask(task, editBox.Text?.Trim() ?? string.Empty);
+            _ = FinishEditingTaskAsync(task, editBox.Text?.Trim() ?? string.Empty);
         };
 
         // Replace text block with edit box
@@ -265,17 +302,21 @@ public partial class MainWindow : Window
         editBox.SelectAll();
     }
 
-    private void FinishEditingTask(Models.TodoTask task, string newTitle)
+    private async Task FinishEditingTaskAsync(Models.TodoTask task, string newTitle)
     {
         if (!string.IsNullOrWhiteSpace(newTitle) && newTitle != task.Title)
         {
             try
             {
-                _todoService.EditTask(task.Id, newTitle);
+                await _todoService.EditTaskAsync(task.Id, newTitle);
             }
             catch (ArgumentException)
             {
                 // Handle invalid input - could show error message in future
+            }
+            catch (Exception)
+            {
+                // Handle persistence errors gracefully
             }
         }
 

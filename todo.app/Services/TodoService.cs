@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using todo.app.Models;
 
 namespace todo.app.Services;
@@ -11,6 +12,7 @@ namespace todo.app.Services;
 public class TodoService
 {
     private readonly List<TodoTask> _tasks;
+    private readonly DataPersistenceService _persistenceService;
 
     /// <summary>
     /// Gets all tasks in the service
@@ -35,9 +37,11 @@ public class TodoService
     /// <summary>
     /// Creates a new TodoService instance
     /// </summary>
-    public TodoService()
+    /// <param name="persistenceService">The persistence service to use. If null, creates a default one.</param>
+    public TodoService(DataPersistenceService? persistenceService = null)
     {
         _tasks = new List<TodoTask>();
+        _persistenceService = persistenceService ?? new DataPersistenceService();
     }
 
     /// <summary>
@@ -154,5 +158,85 @@ public class TodoService
     public IReadOnlyList<TodoTask> GetPendingTasks()
     {
         return _tasks.Where(t => !t.IsCompleted).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Loads tasks from persistent storage
+    /// </summary>
+    /// <returns>A task representing the async operation</returns>
+    public async Task LoadTasksAsync()
+    {
+        var loadedTasks = await _persistenceService.LoadTasksAsync();
+        _tasks.Clear();
+        _tasks.AddRange(loadedTasks);
+    }
+
+    /// <summary>
+    /// Saves tasks to persistent storage
+    /// </summary>
+    /// <returns>A task representing the async operation</returns>
+    public async Task SaveTasksAsync()
+    {
+        await _persistenceService.SaveTasksAsync(_tasks);
+    }
+
+    /// <summary>
+    /// Adds a new task and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title)
+    {
+        var task = AddTask(title);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Removes a task and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to remove</param>
+    /// <returns>True if the task was found and removed, false otherwise</returns>
+    public async Task<bool> RemoveTaskAsync(Guid taskId)
+    {
+        var result = RemoveTask(taskId);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Toggles task completion and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to toggle</param>
+    /// <returns>True if the task was found and toggled, false otherwise</returns>
+    public async Task<bool> ToggleTaskCompletionAsync(Guid taskId)
+    {
+        var result = ToggleTaskCompletion(taskId);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Edits a task and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to edit</param>
+    /// <param name="newTitle">The new title for the task</param>
+    /// <returns>True if the task was found and updated, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when newTitle is null, empty, or whitespace</exception>
+    public async Task<bool> EditTaskAsync(Guid taskId, string newTitle)
+    {
+        var result = EditTask(taskId, newTitle);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
     }
 }
