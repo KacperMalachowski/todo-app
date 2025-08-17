@@ -11,22 +11,22 @@ public class TodoTask
     /// Unique identifier for the task
     /// </summary>
     public Guid Id { get; set; }
-    
+
     /// <summary>
     /// The text description of the task
     /// </summary>
     public string Title { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// Whether the task has been completed
     /// </summary>
     public bool IsCompleted { get; set; }
-    
+
     /// <summary>
     /// When the task was created
     /// </summary>
     public DateTime CreatedAt { get; set; }
-    
+
     /// <summary>
     /// When the task was completed (if applicable)
     /// </summary>
@@ -41,7 +41,7 @@ public class TodoTask
         CreatedAt = DateTime.UtcNow;
         IsCompleted = false;
     }
-    
+
     /// <summary>
     /// Creates a new TodoTask with the specified title
     /// </summary>
@@ -50,7 +50,7 @@ public class TodoTask
     {
         Title = title ?? throw new ArgumentNullException(nameof(title));
     }
-    
+
     /// <summary>
     /// Marks the task as completed
     /// </summary>
@@ -62,7 +62,7 @@ public class TodoTask
             CompletedAt = DateTime.UtcNow;
         }
     }
-    
+
     /// <summary>
     /// Marks the task as not completed
     /// </summary>
