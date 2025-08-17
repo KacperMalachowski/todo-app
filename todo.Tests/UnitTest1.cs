@@ -125,7 +125,7 @@ public class TodoTaskTests
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() => task.UpdateTitle(invalidTitle!));
-        
+
         // Verify original title is unchanged
         Assert.Equal("Original Title", task.Title);
     }
