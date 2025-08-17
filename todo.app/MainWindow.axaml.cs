@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -116,6 +118,12 @@ public partial class MainWindow : Window
                 textBlock.Foreground = Avalonia.Media.Brushes.Gray;
             }
 
+            // Add double-click event for editing
+            textBlock.DoubleTapped += (sender, e) =>
+            {
+                StartEditingTask(task, stackPanel);
+            };
+
             // Create delete button
             var deleteButton = new Button
             {
@@ -211,5 +219,74 @@ public partial class MainWindow : Window
                 ShowPendingButton.Background = Brushes.Orange;
                 break;
         }
+    }
+
+    private void StartEditingTask(Models.TodoTask task, StackPanel taskPanel)
+    {
+        // Find the text block in the stack panel
+        var textBlock = taskPanel.Children.OfType<TextBlock>().FirstOrDefault();
+        if (textBlock == null) return;
+
+        // Create an edit text box
+        var editBox = new TextBox
+        {
+            Text = task.Title,
+            FontSize = 14,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            MinWidth = 200
+        };
+
+        // Handle key events
+        editBox.KeyDown += (sender, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.Enter)
+            {
+                FinishEditingTask(task, editBox.Text?.Trim() ?? string.Empty);
+            }
+            else if (e.Key == Avalonia.Input.Key.Escape)
+            {
+                CancelEditingTask();
+            }
+        };
+
+        // Handle lost focus
+        editBox.LostFocus += (sender, e) =>
+        {
+            FinishEditingTask(task, editBox.Text?.Trim() ?? string.Empty);
+        };
+
+        // Replace text block with edit box
+        var textBlockIndex = taskPanel.Children.IndexOf(textBlock);
+        taskPanel.Children.RemoveAt(textBlockIndex);
+        taskPanel.Children.Insert(textBlockIndex, editBox);
+
+        // Focus and select all text
+        editBox.Focus();
+        editBox.SelectAll();
+    }
+
+    private void FinishEditingTask(Models.TodoTask task, string newTitle)
+    {
+        if (!string.IsNullOrWhiteSpace(newTitle) && newTitle != task.Title)
+        {
+            try
+            {
+                _todoService.EditTask(task.Id, newTitle);
+            }
+            catch (ArgumentException)
+            {
+                // Handle invalid input - could show error message in future
+            }
+        }
+
+        // Refresh the entire list to restore normal view
+        RefreshTaskList();
+        UpdateStatistics();
+    }
+
+    private void CancelEditingTask()
+    {
+        // Simply refresh to restore normal view
+        RefreshTaskList();
     }
 }

@@ -71,4 +71,18 @@ public class TodoTask
         IsCompleted = false;
         CompletedAt = null;
     }
+
+    /// <summary>
+    /// Updates the task title
+    /// </summary>
+    /// <param name="newTitle">The new title for the task</param>
+    /// <exception cref="ArgumentException">Thrown when newTitle is null, empty, or whitespace</exception>
+    public void UpdateTitle(string newTitle)
+    {
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(newTitle));
+        }
+        Title = newTitle;
+    }
 }
