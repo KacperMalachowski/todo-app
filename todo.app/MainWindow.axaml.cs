@@ -15,6 +15,9 @@ public partial class MainWindow : Window
 
         // Wire up the button click event
         AddTaskButton.Click += OnAddTaskButtonClick;
+
+        // Initialize the statistics display
+        UpdateStatistics();
     }
 
     private void OnAddTaskButtonClick(object? sender, RoutedEventArgs e)
@@ -36,6 +39,7 @@ public partial class MainWindow : Window
 
             // Update the UI
             RefreshTaskList();
+            UpdateStatistics();
         }
         catch (System.ArgumentException)
         {
@@ -113,6 +117,7 @@ public partial class MainWindow : Window
 
                 // Update the UI
                 RefreshTaskList();
+                UpdateStatistics();
             };
 
             // Add checkbox, text, and delete button to stack panel
@@ -134,5 +139,13 @@ public partial class MainWindow : Window
 
             TodoListPanel.Children.Add(taskBorder);
         }
+    }
+
+    private void UpdateStatistics()
+    {
+        // Update the statistics labels with current counts
+        TotalCountLabel.Text = _todoService.TotalTaskCount.ToString();
+        CompletedCountLabel.Text = _todoService.CompletedTaskCount.ToString();
+        PendingCountLabel.Text = _todoService.PendingTaskCount.ToString();
     }
 }
