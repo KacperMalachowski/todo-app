@@ -71,7 +71,7 @@ public partial class MainWindow : Window
                 {
                     task.MarkAsIncomplete();
                 }
-                
+
                 // Update the visual state
                 RefreshTaskList();
             };
@@ -98,8 +98,8 @@ public partial class MainWindow : Window
             // Create border container
             var taskBorder = new Border
             {
-                Background = task.IsCompleted ? 
-                    Avalonia.Media.Brushes.LightGreen : 
+                Background = task.IsCompleted ?
+                    Avalonia.Media.Brushes.LightGreen :
                     Avalonia.Media.Brushes.LightGray,
                 Padding = new Avalonia.Thickness(10),
                 Margin = new Avalonia.Thickness(0, 0, 0, 5),
