@@ -242,28 +242,30 @@ public class DataPersistenceServiceTests
     }
 
     [Fact]
-    public async Task SaveTasksAsync_WithReadOnlyPath_ShouldThrowInvalidOperationException()
+    public async Task SaveTasksAsync_WithCorruptedFile_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var testFile = Path.Combine(Path.GetTempPath(), "readonly_test.json");
+        var testFile = Path.Combine(Path.GetTempPath(), "corrupted_test.json");
         var service = new DataPersistenceService(testFile);
         var tasks = new List<TodoTask> { new TodoTask("Test") };
 
         try
         {
-            // Create the file and make it read-only to simulate write failure
-            await File.WriteAllTextAsync(testFile, "existing content");
-            File.SetAttributes(testFile, FileAttributes.ReadOnly);
+            // Create a directory with the same name as our file to force a write failure
+            Directory.CreateDirectory(testFile);
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveTasksAsync(tasks));
         }
         finally
         {
-            // Cleanup - remove read-only attribute first
+            // Cleanup
+            if (Directory.Exists(testFile))
+            {
+                Directory.Delete(testFile, true);
+            }
             if (File.Exists(testFile))
             {
-                File.SetAttributes(testFile, FileAttributes.Normal);
                 File.Delete(testFile);
             }
         }
