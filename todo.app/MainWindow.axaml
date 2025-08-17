@@ -22,12 +22,28 @@
                    HorizontalAlignment="Center"/>
         
         <!-- Add Task Input -->
-        <TextBox Grid.Row="1"
-                 Name="NewTaskTextBox"
-                 Watermark="Enter a new task..."
-                 FontSize="16"
-                 Height="40"
-                 Margin="0,0,0,20"/>
+        <Grid Grid.Row="1" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <TextBox Grid.Column="0"
+                     Name="NewTaskTextBox"
+                     Watermark="Enter a new task..."
+                     FontSize="16"
+                     Height="40"
+                     Margin="0,0,10,0"/>
+            
+            <Button Grid.Column="1"
+                    Name="AddTaskButton"
+                    Content="Add Task"
+                    FontSize="16"
+                    Height="40"
+                    Width="100"
+                    Background="CornflowerBlue"
+                    Foreground="White"/>
+        </Grid>
         
         <!-- Todo List -->
         <ScrollViewer Grid.Row="2">
