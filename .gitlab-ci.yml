@@ -10,6 +10,13 @@ variables:
   GCP_SERVICE_ACCOUNT: gitlab@malachowski-personal-ai.iam.gserviceaccount.com
   GCP_WORKLOAD_IDENTITY_PROVIDER: projects/941627704467/locations/global/workloadIdentityPools/diploma/providers/gitlab
 
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
 static:
   stage: static
   image: mcr.microsoft.com/dotnet/sdk:9.0
