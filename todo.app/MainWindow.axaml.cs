@@ -1,18 +1,17 @@
-using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using todo.app.Models;
+using todo.app.Services;
 
 namespace todo.app;
 
 public partial class MainWindow : Window
 {
-    private readonly List<TodoTask> _tasks;
+    private readonly TodoService _todoService;
 
     public MainWindow()
     {
         InitializeComponent();
-        _tasks = new List<TodoTask>();
+        _todoService = new TodoService();
 
         // Wire up the button click event
         AddTaskButton.Click += OnAddTaskButtonClick;
@@ -27,24 +26,31 @@ public partial class MainWindow : Window
             return; // Don't add empty tasks
         }
 
-        // Create new task
-        var newTask = new TodoTask(taskText);
-        _tasks.Add(newTask);
+        try
+        {
+            // Use the service to add the task
+            _todoService.AddTask(taskText);
 
-        // Clear the input field
-        NewTaskTextBox.Text = string.Empty;
+            // Clear the input field
+            NewTaskTextBox.Text = string.Empty;
 
-        // Update the UI
-        RefreshTaskList();
+            // Update the UI
+            RefreshTaskList();
+        }
+        catch (System.ArgumentException)
+        {
+            // Handle invalid input (though we check above, this is defensive)
+            // Could show an error message to user in the future
+        }
     }
 
     private void RefreshTaskList()
     {
-        // Clear existing items (including sample tasks)
+        // Clear existing items
         TodoListPanel.Children.Clear();
 
-        // Add all tasks
-        foreach (var task in _tasks)
+        // Get all tasks from the service
+        foreach (var task in _todoService.Tasks)
         {
             // Create a horizontal stack panel for checkbox + text
             var stackPanel = new StackPanel
@@ -63,14 +69,8 @@ public partial class MainWindow : Window
             // Handle checkbox change event
             checkBox.IsCheckedChanged += (sender, e) =>
             {
-                if (checkBox.IsChecked == true)
-                {
-                    task.MarkAsCompleted();
-                }
-                else
-                {
-                    task.MarkAsIncomplete();
-                }
+                // Use the service to toggle task completion
+                _todoService.ToggleTaskCompletion(task.Id);
 
                 // Update the visual state
                 RefreshTaskList();
