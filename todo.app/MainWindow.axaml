@@ -4,6 +4,58 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="todo.app.MainWindow"
-        Title="todo.app">
-    Welcome to Avalonia!
+        Title="Todo App">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <TextBlock Grid.Row="0" 
+                   Text="My Todo List" 
+                   FontSize="24" 
+                   FontWeight="Bold" 
+                   Margin="0,0,0,20"
+                   HorizontalAlignment="Center"/>
+        
+        <!-- Add Task Input -->
+        <TextBox Grid.Row="1"
+                 Name="NewTaskTextBox"
+                 Watermark="Enter a new task..."
+                 FontSize="16"
+                 Height="40"
+                 Margin="0,0,0,20"/>
+        
+        <!-- Todo List -->
+        <ScrollViewer Grid.Row="2">
+            <StackPanel Name="TodoListPanel">
+                <!-- Sample todo items for demonstration -->
+                <Border Background="LightGray" 
+                        Padding="10" 
+                        Margin="0,0,0,5" 
+                        CornerRadius="5">
+                    <TextBlock Text="Sample Task 1" FontSize="14"/>
+                </Border>
+                
+                <Border Background="LightGray" 
+                        Padding="10" 
+                        Margin="0,0,0,5" 
+                        CornerRadius="5">
+                    <TextBlock Text="Sample Task 2" FontSize="14"/>
+                </Border>
+                
+                <Border Background="LightGray" 
+                        Padding="10" 
+                        Margin="0,0,0,5" 
+                        CornerRadius="5">
+                    <TextBlock Text="Sample Task 3" FontSize="14"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        
+    </Grid>
+    
 </Window>
