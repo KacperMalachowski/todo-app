@@ -91,9 +91,34 @@ public partial class MainWindow : Window
                 textBlock.Foreground = Avalonia.Media.Brushes.Gray;
             }
 
-            // Add checkbox and text to stack panel
+            // Create delete button
+            var deleteButton = new Button
+            {
+                Content = "🗑️",
+                FontSize = 12,
+                Width = 30,
+                Height = 30,
+                Background = Avalonia.Media.Brushes.LightCoral,
+                Foreground = Avalonia.Media.Brushes.White,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+
+            // Handle delete button click
+            deleteButton.Click += (sender, e) =>
+            {
+                // Use the service to remove the task
+                _todoService.RemoveTask(task.Id);
+
+                // Update the UI
+                RefreshTaskList();
+            };
+
+            // Add checkbox, text, and delete button to stack panel
             stackPanel.Children.Add(checkBox);
             stackPanel.Children.Add(textBlock);
+            stackPanel.Children.Add(deleteButton);
 
             // Create border container
             var taskBorder = new Border
