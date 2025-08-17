@@ -1,22 +1,35 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using todo.app.Services;
 
 namespace todo.app;
 
+public enum TaskFilter
+{
+    All,
+    Completed,
+    Pending
+}
+
 public partial class MainWindow : Window
 {
     private readonly TodoService _todoService;
+    private TaskFilter _currentFilter = TaskFilter.All;
 
     public MainWindow()
     {
         InitializeComponent();
         _todoService = new TodoService();
 
-        // Wire up the button click event
+        // Wire up the button click events
         AddTaskButton.Click += OnAddTaskButtonClick;
+        ShowAllButton.Click += OnShowAllButtonClick;
+        ShowCompletedButton.Click += OnShowCompletedButtonClick;
+        ShowPendingButton.Click += OnShowPendingButtonClick;
 
-        // Initialize the statistics display
+        // Initialize the display
+        UpdateFilterButtonStyles();
         UpdateStatistics();
     }
 
@@ -53,8 +66,16 @@ public partial class MainWindow : Window
         // Clear existing items
         TodoListPanel.Children.Clear();
 
-        // Get all tasks from the service
-        foreach (var task in _todoService.Tasks)
+        // Get filtered tasks from the service
+        var tasksToShow = _currentFilter switch
+        {
+            TaskFilter.Completed => _todoService.GetCompletedTasks(),
+            TaskFilter.Pending => _todoService.GetPendingTasks(),
+            _ => _todoService.Tasks
+        };
+
+        // Add filtered tasks
+        foreach (var task in tasksToShow)
         {
             // Create a horizontal stack panel for checkbox + text
             var stackPanel = new StackPanel
@@ -147,5 +168,48 @@ public partial class MainWindow : Window
         TotalCountLabel.Text = _todoService.TotalTaskCount.ToString();
         CompletedCountLabel.Text = _todoService.CompletedTaskCount.ToString();
         PendingCountLabel.Text = _todoService.PendingTaskCount.ToString();
+    }
+
+    private void OnShowAllButtonClick(object? sender, RoutedEventArgs e)
+    {
+        _currentFilter = TaskFilter.All;
+        UpdateFilterButtonStyles();
+        RefreshTaskList();
+    }
+
+    private void OnShowCompletedButtonClick(object? sender, RoutedEventArgs e)
+    {
+        _currentFilter = TaskFilter.Completed;
+        UpdateFilterButtonStyles();
+        RefreshTaskList();
+    }
+
+    private void OnShowPendingButtonClick(object? sender, RoutedEventArgs e)
+    {
+        _currentFilter = TaskFilter.Pending;
+        UpdateFilterButtonStyles();
+        RefreshTaskList();
+    }
+
+    private void UpdateFilterButtonStyles()
+    {
+        // Reset all buttons to inactive style
+        ShowAllButton.Background = Brushes.Gray;
+        ShowCompletedButton.Background = Brushes.Gray;
+        ShowPendingButton.Background = Brushes.Gray;
+
+        // Highlight the active filter button
+        switch (_currentFilter)
+        {
+            case TaskFilter.All:
+                ShowAllButton.Background = Brushes.DarkBlue;
+                break;
+            case TaskFilter.Completed:
+                ShowCompletedButton.Background = Brushes.Green;
+                break;
+            case TaskFilter.Pending:
+                ShowPendingButton.Background = Brushes.Orange;
+                break;
+        }
     }
 }
