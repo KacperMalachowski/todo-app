@@ -38,6 +38,11 @@ public class TodoTask
     public TaskPriority Priority { get; set; }
 
     /// <summary>
+    /// When the task is due (optional)
+    /// </summary>
+    public DateTime? DueDate { get; set; }
+
+    /// <summary>
     /// Creates a new TodoTask with default values
     /// </summary>
     public TodoTask()
@@ -65,6 +70,27 @@ public class TodoTask
     public TodoTask(string title, TaskPriority priority) : this(title)
     {
         Priority = priority;
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title and due date
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="dueDate">The task due date</param>
+    public TodoTask(string title, DateTime dueDate) : this(title)
+    {
+        DueDate = dueDate;
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title, priority, and due date
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="dueDate">The task due date</param>
+    public TodoTask(string title, TaskPriority priority, DateTime dueDate) : this(title, priority)
+    {
+        DueDate = dueDate;
     }
 
     /// <summary>
@@ -109,5 +135,67 @@ public class TodoTask
     public void UpdatePriority(TaskPriority newPriority)
     {
         Priority = newPriority;
+    }
+
+    /// <summary>
+    /// Updates the task due date
+    /// </summary>
+    /// <param name="newDueDate">The new due date for the task (null to remove due date)</param>
+    public void UpdateDueDate(DateTime? newDueDate)
+    {
+        DueDate = newDueDate;
+    }
+
+    /// <summary>
+    /// Gets whether the task is overdue
+    /// </summary>
+    public bool IsOverdue
+    {
+        get
+        {
+            return DueDate.HasValue &&
+                   !IsCompleted &&
+                   DueDate.Value.Date < DateTime.Today;
+        }
+    }
+
+    /// <summary>
+    /// Gets whether the task is due today
+    /// </summary>
+    public bool IsDueToday
+    {
+        get
+        {
+            return DueDate.HasValue &&
+                   !IsCompleted &&
+                   DueDate.Value.Date == DateTime.Today;
+        }
+    }
+
+    /// <summary>
+    /// Gets whether the task is due within the specified number of days
+    /// </summary>
+    /// <param name="days">Number of days to check</param>
+    /// <returns>True if the task is due within the specified days</returns>
+    public bool IsDueWithin(int days)
+    {
+        if (!DueDate.HasValue || IsCompleted) return false;
+
+        var targetDate = DateTime.Today.AddDays(days);
+        return DueDate.Value.Date >= DateTime.Today && DueDate.Value.Date <= targetDate;
+    }
+
+    /// <summary>
+    /// Gets the number of days until the task is due (negative if overdue)
+    /// </summary>
+    public int? DaysUntilDue
+    {
+        get
+        {
+            if (!DueDate.HasValue) return null;
+
+            var days = (DueDate.Value.Date - DateTime.Today).Days;
+            return days;
+        }
     }
 }

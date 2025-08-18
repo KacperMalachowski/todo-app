@@ -244,4 +244,170 @@ public class TodoTaskTests
         Assert.Equal(originalCompletedAt, task.CompletedAt);
         Assert.Equal(originalIsCompleted, task.IsCompleted);
     }
+
+    // Due Date Tests
+    [Fact]
+    public void Constructor_ShouldSetNullDueDate()
+    {
+        // Act
+        var task = new TodoTask();
+
+        // Assert
+        Assert.Null(task.DueDate);
+        Assert.False(task.IsOverdue);
+        Assert.False(task.IsDueToday);
+    }
+
+    [Fact]
+    public void Constructor_WithTitleAndDueDate_ShouldSetDueDate()
+    {
+        // Arrange
+        var dueDate = DateTime.Today.AddDays(1);
+
+        // Act
+        var task = new TodoTask("Test Task", dueDate);
+
+        // Assert
+        Assert.Equal("Test Task", task.Title);
+        Assert.Equal(dueDate, task.DueDate);
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority);
+    }
+
+    [Fact]
+    public void Constructor_WithTitlePriorityAndDueDate_ShouldSetAllProperties()
+    {
+        // Arrange
+        var dueDate = DateTime.Today.AddDays(2);
+        var priority = todo.app.Models.TaskPriority.High;
+
+        // Act
+        var task = new TodoTask("Important Task", priority, dueDate);
+
+        // Assert
+        Assert.Equal("Important Task", task.Title);
+        Assert.Equal(priority, task.Priority);
+        Assert.Equal(dueDate, task.DueDate);
+    }
+
+    [Fact]
+    public void UpdateDueDate_ShouldUpdateDueDate()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task");
+        var dueDate = DateTime.Today.AddDays(3);
+
+        // Act
+        task.UpdateDueDate(dueDate);
+
+        // Assert
+        Assert.Equal(dueDate, task.DueDate);
+    }
+
+    [Fact]
+    public void UpdateDueDate_WithNull_ShouldRemoveDueDate()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(1));
+
+        // Act
+        task.UpdateDueDate(null);
+
+        // Assert
+        Assert.Null(task.DueDate);
+    }
+
+    [Fact]
+    public void IsOverdue_WithPastDueDate_ShouldReturnTrue()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(-1));
+
+        // Act & Assert
+        Assert.True(task.IsOverdue);
+    }
+
+    [Fact]
+    public void IsOverdue_WithFutureDueDate_ShouldReturnFalse()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(1));
+
+        // Act & Assert
+        Assert.False(task.IsOverdue);
+    }
+
+    [Fact]
+    public void IsOverdue_WithCompletedTask_ShouldReturnFalse()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(-1));
+        task.MarkAsCompleted();
+
+        // Act & Assert
+        Assert.False(task.IsOverdue);
+    }
+
+    [Fact]
+    public void IsDueToday_WithTodayDueDate_ShouldReturnTrue()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today);
+
+        // Act & Assert
+        Assert.True(task.IsDueToday);
+    }
+
+    [Fact]
+    public void IsDueToday_WithTomorrowDueDate_ShouldReturnFalse()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(1));
+
+        // Act & Assert
+        Assert.False(task.IsDueToday);
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(3, true)]
+    [InlineData(7, true)]
+    [InlineData(-1, false)]
+    public void IsDueWithin_ShouldReturnCorrectValue(int daysFromToday, bool expected)
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(daysFromToday));
+
+        // Act & Assert
+        Assert.Equal(expected, task.IsDueWithin(7));
+    }
+
+    [Fact]
+    public void DaysUntilDue_WithFutureDueDate_ShouldReturnPositiveDays()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(5));
+
+        // Act & Assert
+        Assert.Equal(5, task.DaysUntilDue);
+    }
+
+    [Fact]
+    public void DaysUntilDue_WithPastDueDate_ShouldReturnNegativeDays()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task", DateTime.Today.AddDays(-3));
+
+        // Act & Assert
+        Assert.Equal(-3, task.DaysUntilDue);
+    }
+
+    [Fact]
+    public void DaysUntilDue_WithNoDueDate_ShouldReturnNull()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task");
+
+        // Act & Assert
+        Assert.Null(task.DaysUntilDue);
+    }
 }

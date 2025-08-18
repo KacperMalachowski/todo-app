@@ -34,6 +34,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
                 <StackPanel Grid.Column="0" HorizontalAlignment="Center">
@@ -70,67 +71,156 @@
                                FontSize="12" 
                                HorizontalAlignment="Center"/>
                 </StackPanel>
+                
+                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                    <TextBlock Name="OverdueCountLabel" 
+                               Text="0" 
+                               FontSize="20" 
+                               FontWeight="Bold" 
+                               Foreground="Red"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="Overdue" 
+                               FontSize="12" 
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
             </Grid>
         </Border>
         
         <!-- Filter Buttons -->
         <Grid Grid.Row="2" Margin="0,0,0,20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             
-            <Button Grid.Column="0" 
-                    Name="ShowAllButton"
-                    Content="All Tasks" 
-                    FontSize="14" 
-                    Height="35"
-                    Margin="0,0,5,0"
-                    Background="DarkBlue"
-                    Foreground="White"/>
+            <!-- Primary Filters -->
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <Button Grid.Column="0" 
+                        Name="ShowAllButton"
+                        Content="All Tasks" 
+                        FontSize="14" 
+                        Height="35"
+                        Margin="0,0,5,0"
+                        Background="DarkBlue"
+                        Foreground="White"/>
+                
+                <Button Grid.Column="1" 
+                        Name="ShowCompletedButton"
+                        Content="Completed" 
+                        FontSize="14" 
+                        Height="35"
+                        Margin="5,0,5,0"
+                        Background="Gray"
+                        Foreground="White"/>
+                
+                <Button Grid.Column="2" 
+                        Name="ShowPendingButton"
+                        Content="Pending" 
+                        FontSize="14" 
+                        Height="35"
+                        Margin="5,0,0,0"
+                        Background="Gray"
+                        Foreground="White"/>
+            </Grid>
             
-            <Button Grid.Column="1" 
-                    Name="ShowCompletedButton"
-                    Content="Completed" 
-                    FontSize="14" 
-                    Height="35"
-                    Margin="5,0,5,0"
-                    Background="Gray"
-                    Foreground="White"/>
-            
-            <Button Grid.Column="2" 
-                    Name="ShowPendingButton"
-                    Content="Pending" 
-                    FontSize="14" 
-                    Height="35"
-                    Margin="5,0,0,0"
-                    Background="Gray"
-                    Foreground="White"/>
+            <!-- Due Date Filters -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <Button Grid.Column="0" 
+                        Name="ShowOverdueButton"
+                        Content="Overdue" 
+                        FontSize="14" 
+                        Height="35"
+                        Margin="0,0,5,0"
+                        Background="Gray"
+                        Foreground="White"/>
+                
+                <Button Grid.Column="1" 
+                        Name="ShowDueTodayButton"
+                        Content="Due Today" 
+                        FontSize="14" 
+                        Height="35"
+                        Margin="5,0,0,0"
+                        Background="Gray"
+                        Foreground="White"/>
+            </Grid>
         </Grid>
         
         <!-- Add Task Input -->
         <Grid Grid.Row="3" Margin="0,0,0,20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             
-            <TextBox Grid.Column="0"
-                     Name="NewTaskTextBox"
-                     Watermark="Enter a new task..."
-                     FontSize="16"
-                     Height="40"
-                     Margin="0,0,10,0"/>
+            <!-- Task Title and Priority Row -->
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBox Grid.Column="0"
+                         Name="NewTaskTextBox"
+                         Watermark="Enter a new task..."
+                         FontSize="16"
+                         Height="40"
+                         Margin="0,0,10,0"/>
+                
+                <ComboBox Grid.Column="1"
+                          Name="PriorityComboBox"
+                          Height="40"
+                          Width="100"
+                          Margin="0,0,10,0"
+                          SelectedIndex="1">
+                    <ComboBoxItem Content="Low"/>
+                    <ComboBoxItem Content="Medium"/>
+                    <ComboBoxItem Content="High"/>
+                </ComboBox>
+                
+                <Button Grid.Column="2"
+                        Name="AddTaskButton"
+                        Content="Add Task"
+                        FontSize="16"
+                        Height="40"
+                        Width="100"
+                        Background="CornflowerBlue"
+                        Foreground="White"/>
+            </Grid>
             
-            <Button Grid.Column="1"
-                    Name="AddTaskButton"
-                    Content="Add Task"
-                    FontSize="16"
-                    Height="40"
-                    Width="100"
-                    Background="CornflowerBlue"
-                    Foreground="White"/>
+            <!-- Due Date Row -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <DatePicker Grid.Column="0"
+                            Name="DueDatePicker"
+                            FontSize="14"
+                            Height="35"
+                            Margin="0,0,10,0"/>
+                
+                <Button Grid.Column="1"
+                        Name="ClearDueDateButton"
+                        Content="Clear Date"
+                        FontSize="14"
+                        Height="35"
+                        Width="100"
+                        Background="Gray"
+                        Foreground="White"/>
+            </Grid>
         </Grid>
         
         <!-- Todo List -->
