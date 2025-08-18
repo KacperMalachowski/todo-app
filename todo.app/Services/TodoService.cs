@@ -239,4 +239,107 @@ public class TodoService
         }
         return result;
     }
+
+    /// <summary>
+    /// Adds a new task with the specified title and priority
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public TodoTask AddTask(string title, TaskPriority priority)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(title));
+        }
+
+        var task = new TodoTask(title.Trim(), priority);
+        _tasks.Add(task);
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with priority and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title, TaskPriority priority)
+    {
+        var task = AddTask(title, priority);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Updates the priority of an existing task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="newPriority">The new priority for the task</param>
+    /// <returns>True if the task was found and updated, false otherwise</returns>
+    public bool UpdateTaskPriority(Guid taskId, TaskPriority newPriority)
+    {
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            task.UpdatePriority(newPriority);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Updates task priority and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="newPriority">The new priority for the task</param>
+    /// <returns>True if the task was found and updated, false otherwise</returns>
+    public async Task<bool> UpdateTaskPriorityAsync(Guid taskId, TaskPriority newPriority)
+    {
+        var result = UpdateTaskPriority(taskId, newPriority);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Gets all tasks with the specified priority
+    /// </summary>
+    /// <param name="priority">The priority to filter by</param>
+    /// <returns>A list of tasks with the specified priority</returns>
+    public IReadOnlyList<TodoTask> GetTasksByPriority(TaskPriority priority)
+    {
+        return _tasks.Where(t => t.Priority == priority).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all high priority tasks
+    /// </summary>
+    /// <returns>A list of high priority tasks</returns>
+    public IReadOnlyList<TodoTask> GetHighPriorityTasks()
+    {
+        return GetTasksByPriority(TaskPriority.High);
+    }
+
+    /// <summary>
+    /// Gets all medium priority tasks
+    /// </summary>
+    /// <returns>A list of medium priority tasks</returns>
+    public IReadOnlyList<TodoTask> GetMediumPriorityTasks()
+    {
+        return GetTasksByPriority(TaskPriority.Medium);
+    }
+
+    /// <summary>
+    /// Gets all low priority tasks
+    /// </summary>
+    /// <returns>A list of low priority tasks</returns>
+    public IReadOnlyList<TodoTask> GetLowPriorityTasks()
+    {
+        return GetTasksByPriority(TaskPriority.Low);
+    }
 }
