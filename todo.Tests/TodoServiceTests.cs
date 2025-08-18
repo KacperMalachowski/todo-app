@@ -970,4 +970,360 @@ public class TodoServiceTests
         Assert.Contains(tasksWithoutDates, t => t.Id == taskWithoutDate1.Id);
         Assert.Contains(tasksWithoutDates, t => t.Id == taskWithoutDate2.Id);
     }
+
+    // Search and Filter Tests
+
+    [Fact]
+    public void SearchTasks_WithValidSearchTerm_ShouldReturnMatchingTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Buy milk");
+        service.AddTask("Buy bread");
+        service.AddTask("Walk the dog");
+        service.AddTask("Feed the cat");
+
+        // Act
+        var results = service.SearchTasks("Buy");
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.All(results, task => Assert.Contains("Buy", task.Title));
+    }
+
+    [Fact]
+    public void SearchTasks_CaseInsensitive_ShouldReturnMatchingTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Buy Milk");
+        service.AddTask("buy bread");
+        service.AddTask("BUY EGGS");
+
+        // Act
+        var results = service.SearchTasks("buy");
+
+        // Assert
+        Assert.Equal(3, results.Count);
+    }
+
+    [Fact]
+    public void SearchTasks_WithEmptySearchTerm_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var service = new TodoService();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => service.SearchTasks(""));
+        Assert.Throws<ArgumentException>(() => service.SearchTasks(null!));
+        Assert.Throws<ArgumentException>(() => service.SearchTasks("   "));
+    }
+
+    [Fact]
+    public void SearchTasks_WithNoMatches_ShouldReturnEmptyList()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Buy milk");
+        service.AddTask("Walk dog");
+
+        // Act
+        var results = service.SearchTasks("xyz");
+
+        // Assert
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void SearchTasksWithFilters_WithCompletionFilter_ShouldReturnFilteredResults()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task1 = service.AddTask("Buy milk");
+        var task2 = service.AddTask("Buy bread");
+        service.ToggleTaskCompletion(task1.Id);
+
+        // Act
+        var completedResults = service.SearchTasksWithFilters("Buy", isCompleted: true);
+        var pendingResults = service.SearchTasksWithFilters("Buy", isCompleted: false);
+
+        // Assert
+        Assert.Single(completedResults);
+        Assert.Equal(task1.Id, completedResults[0].Id);
+        Assert.Single(pendingResults);
+        Assert.Equal(task2.Id, pendingResults[0].Id);
+    }
+
+    [Fact]
+    public void SearchTasksWithFilters_WithPriorityFilter_ShouldReturnFilteredResults()
+    {
+        // Arrange
+        var service = new TodoService();
+        var highTask = service.AddTask("Important task", todo.app.Models.TaskPriority.High);
+        var mediumTask = service.AddTask("Important meeting", todo.app.Models.TaskPriority.Medium);
+        service.AddTask("Random task", todo.app.Models.TaskPriority.Low);
+
+        // Act
+        var results = service.SearchTasksWithFilters("task", priority: todo.app.Models.TaskPriority.High);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal(highTask.Id, results[0].Id);
+    }
+
+    [Fact]
+    public void SearchTasksWithFilters_WithOverdueFilter_ShouldReturnOverdueTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        var overdueTask = service.AddTask("Overdue task", DateTime.Today.AddDays(-1));
+        var futureTask = service.AddTask("Future task", DateTime.Today.AddDays(1));
+
+        // Act
+        var results = service.SearchTasksWithFilters("task", includeOverdue: true);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal(overdueTask.Id, results[0].Id);
+    }
+
+    [Fact]
+    public void SearchTasksWithFilters_WithDueTodayFilter_ShouldReturnTasksDueToday()
+    {
+        // Arrange
+        var service = new TodoService();
+        var todayTask = service.AddTask("Today task", DateTime.Today);
+        var futureTask = service.AddTask("Future task", DateTime.Today.AddDays(1));
+
+        // Act
+        var results = service.SearchTasksWithFilters("task", includeDueToday: true);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal(todayTask.Id, results[0].Id);
+    }
+
+    [Fact]
+    public void FilterTasks_WithMultipleCriteria_ShouldReturnMatchingTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task1 = service.AddTask("High priority task", todo.app.Models.TaskPriority.High);
+        var task2 = service.AddTask("Medium priority task", todo.app.Models.TaskPriority.Medium);
+        var task3 = service.AddTask("Low priority task", todo.app.Models.TaskPriority.Low);
+        service.ToggleTaskCompletion(task2.Id);
+
+        // Act
+        var results = service.FilterTasks(isCompleted: false, priority: todo.app.Models.TaskPriority.High);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal(task1.Id, results[0].Id);
+    }
+
+    [Fact]
+    public void FilterTasks_WithDateRange_ShouldReturnTasksInRange()
+    {
+        // Arrange
+        var service = new TodoService();
+        var startDate = DateTime.Today;
+        var endDate = DateTime.Today.AddDays(2);
+        
+        var taskInRange = service.AddTask("Task in range", DateTime.Today.AddDays(1));
+        var taskOutOfRange = service.AddTask("Task out of range", DateTime.Today.AddDays(5));
+
+        // Act
+        var results = service.FilterTasks(dueDateRange: (startDate, endDate));
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal(taskInRange.Id, results[0].Id);
+    }
+
+    [Fact]
+    public void SearchTasksMultipleTerms_WithOrOperation_ShouldReturnTasksMatchingAnyTerm()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Buy milk");
+        service.AddTask("Walk dog");
+        service.AddTask("Feed cat");
+        service.AddTask("Clean house");
+
+        // Act
+        var results = service.SearchTasksMultipleTerms("milk", "dog");
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title.Contains("milk"));
+        Assert.Contains(results, t => t.Title.Contains("dog"));
+    }
+
+    [Fact]
+    public void SearchTasksMultipleTerms_WithEmptyArray_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var service = new TodoService();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => service.SearchTasksMultipleTerms());
+        Assert.Throws<ArgumentException>(() => service.SearchTasksMultipleTerms(null!));
+        Assert.Throws<ArgumentException>(() => service.SearchTasksMultipleTerms("", "   "));
+    }
+
+    [Fact]
+    public void SearchTasksAllTerms_WithAndOperation_ShouldReturnTasksMatchingAllTerms()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Buy fresh milk");
+        service.AddTask("Buy bread");
+        service.AddTask("Fresh fruit");
+
+        // Act
+        var results = service.SearchTasksAllTerms("Buy", "fresh");
+
+        // Assert
+        Assert.Single(results);
+        Assert.Contains("Buy fresh milk", results[0].Title);
+    }
+
+    [Fact]
+    public void SearchTasksAllTerms_WithNoMatchingTasks_ShouldReturnEmptyList()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Buy milk");
+        service.AddTask("Walk dog");
+
+        // Act
+        var results = service.SearchTasksAllTerms("Buy", "dog");
+
+        // Assert
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void GetTasksSorted_ByTitle_ShouldReturnTasksInTitleOrder()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Zebra task");
+        service.AddTask("Alpha task");
+        service.AddTask("Beta task");
+
+        // Act
+        var results = service.GetTasksSorted(todo.app.Services.TaskSortCriterion.Title);
+
+        // Assert
+        Assert.Equal(3, results.Count);
+        Assert.Equal("Alpha task", results[0].Title);
+        Assert.Equal("Beta task", results[1].Title);
+        Assert.Equal("Zebra task", results[2].Title);
+    }
+
+    [Fact]
+    public void GetTasksSorted_ByTitleDescending_ShouldReturnTasksInReverseTitleOrder()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Alpha task");
+        service.AddTask("Beta task");
+        service.AddTask("Zebra task");
+
+        // Act
+        var results = service.GetTasksSorted(todo.app.Services.TaskSortCriterion.Title, descendingPrimary: true);
+
+        // Assert
+        Assert.Equal(3, results.Count);
+        Assert.Equal("Zebra task", results[0].Title);
+        Assert.Equal("Beta task", results[1].Title);
+        Assert.Equal("Alpha task", results[2].Title);
+    }
+
+    [Fact]
+    public void GetTasksSorted_ByPriority_ShouldReturnTasksInPriorityOrder()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Low task", todo.app.Models.TaskPriority.Low);
+        service.AddTask("High task", todo.app.Models.TaskPriority.High);
+        service.AddTask("Medium task", todo.app.Models.TaskPriority.Medium);
+
+        // Act
+        var results = service.GetTasksSorted(todo.app.Services.TaskSortCriterion.Priority);
+
+        // Assert
+        Assert.Equal(3, results.Count);
+        Assert.Equal(todo.app.Models.TaskPriority.Low, results[0].Priority);
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, results[1].Priority);
+        Assert.Equal(todo.app.Models.TaskPriority.High, results[2].Priority);
+    }
+
+    [Fact]
+    public void GetTasksSorted_ByDueDate_ShouldReturnTasksInDueDateOrder()
+    {
+        // Arrange
+        var service = new TodoService();
+        var futureDate = DateTime.Today.AddDays(3);
+        var todayDate = DateTime.Today;
+        var middleDate = DateTime.Today.AddDays(1);
+
+        service.AddTask("Future task", futureDate);
+        service.AddTask("Today task", todayDate);
+        service.AddTask("Middle task", middleDate);
+        service.AddTask("No date task"); // Should come last
+
+        // Act
+        var results = service.GetTasksSorted(todo.app.Services.TaskSortCriterion.DueDate);
+
+        // Assert
+        Assert.Equal(4, results.Count);
+        Assert.Equal(todayDate, results[0].DueDate);
+        Assert.Equal(middleDate, results[1].DueDate);
+        Assert.Equal(futureDate, results[2].DueDate);
+        Assert.Null(results[3].DueDate); // Tasks without due dates come last
+    }
+
+    [Fact]
+    public void GetTasksSorted_ByCompletionStatus_ShouldReturnIncompleteTasksFirst()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task1 = service.AddTask("Task 1");
+        var task2 = service.AddTask("Task 2");
+        var task3 = service.AddTask("Task 3");
+        
+        service.ToggleTaskCompletion(task2.Id);
+
+        // Act
+        var results = service.GetTasksSorted(todo.app.Services.TaskSortCriterion.CompletionStatus);
+
+        // Assert
+        Assert.Equal(3, results.Count);
+        Assert.False(results[0].IsCompleted);
+        Assert.False(results[1].IsCompleted);
+        Assert.True(results[2].IsCompleted);
+    }
+
+    [Fact]
+    public void GetTasksSorted_WithSecondarySort_ShouldApplyBothCriteria()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("B Task", todo.app.Models.TaskPriority.High);
+        service.AddTask("A Task", todo.app.Models.TaskPriority.High);
+        service.AddTask("C Task", todo.app.Models.TaskPriority.Low);
+
+        // Act - Sort by priority first, then by title
+        var results = service.GetTasksSorted(
+            todo.app.Services.TaskSortCriterion.Priority,
+            todo.app.Services.TaskSortCriterion.Title);
+
+        // Assert
+        Assert.Equal(3, results.Count);
+        Assert.Equal("C Task", results[0].Title); // Low priority first
+        Assert.Equal("A Task", results[1].Title); // High priority, A comes before B
+        Assert.Equal("B Task", results[2].Title); // High priority, B comes after A
+    }
 }

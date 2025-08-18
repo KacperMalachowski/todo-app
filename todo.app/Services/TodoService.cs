@@ -491,4 +491,256 @@ public class TodoService
     {
         return _tasks.Where(t => !t.DueDate.HasValue).ToList().AsReadOnly();
     }
+
+    // Search and Filter Methods
+
+    /// <summary>
+    /// Searches tasks by title containing the specified search term (case-insensitive)
+    /// </summary>
+    /// <param name="searchTerm">The search term to look for in task titles</param>
+    /// <returns>A list of tasks containing the search term in their title</returns>
+    /// <exception cref="ArgumentException">Thrown when searchTerm is null or empty</exception>
+    public IReadOnlyList<TodoTask> SearchTasks(string searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            throw new ArgumentException("Search term cannot be null or empty", nameof(searchTerm));
+        }
+
+        return _tasks
+            .Where(task => task.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    /// <summary>
+    /// Searches tasks by title containing the search term with additional filters
+    /// </summary>
+    /// <param name="searchTerm">The search term to look for in task titles</param>
+    /// <param name="isCompleted">Optional filter for completion status</param>
+    /// <param name="priority">Optional filter for priority level</param>
+    /// <param name="includeOverdue">Optional filter to include only overdue tasks</param>
+    /// <param name="includeDueToday">Optional filter to include only tasks due today</param>
+    /// <returns>A list of tasks matching the search and filter criteria</returns>
+    /// <exception cref="ArgumentException">Thrown when searchTerm is null or empty</exception>
+    public IReadOnlyList<TodoTask> SearchTasksWithFilters(
+        string searchTerm,
+        bool? isCompleted = null,
+        TaskPriority? priority = null,
+        bool includeOverdue = false,
+        bool includeDueToday = false)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            throw new ArgumentException("Search term cannot be null or empty", nameof(searchTerm));
+        }
+
+        var query = _tasks
+            .Where(task => task.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+        // Apply completion status filter
+        if (isCompleted.HasValue)
+        {
+            query = query.Where(task => task.IsCompleted == isCompleted.Value);
+        }
+
+        // Apply priority filter
+        if (priority.HasValue)
+        {
+            query = query.Where(task => task.Priority == priority.Value);
+        }
+
+        // Apply due date filters
+        if (includeOverdue)
+        {
+            query = query.Where(task => task.IsOverdue);
+        }
+        else if (includeDueToday)
+        {
+            query = query.Where(task => task.IsDueToday);
+        }
+
+        return query.ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets tasks matching multiple filter criteria without requiring a search term
+    /// </summary>
+    /// <param name="isCompleted">Optional filter for completion status</param>
+    /// <param name="priority">Optional filter for priority level</param>
+    /// <param name="includeOverdue">Optional filter to include only overdue tasks</param>
+    /// <param name="includeDueToday">Optional filter to include only tasks due today</param>
+    /// <param name="dueDateRange">Optional filter for tasks due within a specific date range</param>
+    /// <returns>A list of tasks matching the filter criteria</returns>
+    public IReadOnlyList<TodoTask> FilterTasks(
+        bool? isCompleted = null,
+        TaskPriority? priority = null,
+        bool includeOverdue = false,
+        bool includeDueToday = false,
+        (DateTime startDate, DateTime endDate)? dueDateRange = null)
+    {
+        var query = _tasks.AsQueryable();
+
+        // Apply completion status filter
+        if (isCompleted.HasValue)
+        {
+            query = query.Where(task => task.IsCompleted == isCompleted.Value);
+        }
+
+        // Apply priority filter
+        if (priority.HasValue)
+        {
+            query = query.Where(task => task.Priority == priority.Value);
+        }
+
+        // Apply due date filters
+        if (includeOverdue)
+        {
+            query = query.Where(task => task.IsOverdue);
+        }
+        else if (includeDueToday)
+        {
+            query = query.Where(task => task.IsDueToday);
+        }
+        else if (dueDateRange.HasValue)
+        {
+            var (startDate, endDate) = dueDateRange.Value;
+            query = query.Where(task => task.DueDate.HasValue &&
+                                       task.DueDate.Value.Date >= startDate.Date &&
+                                       task.DueDate.Value.Date <= endDate.Date);
+        }
+
+        return query.ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets tasks that match any of the provided search terms (OR operation)
+    /// </summary>
+    /// <param name="searchTerms">Array of search terms</param>
+    /// <returns>A list of tasks containing any of the search terms</returns>
+    /// <exception cref="ArgumentException">Thrown when searchTerms is null or empty</exception>
+    public IReadOnlyList<TodoTask> SearchTasksMultipleTerms(params string[] searchTerms)
+    {
+        if (searchTerms == null || searchTerms.Length == 0)
+        {
+            throw new ArgumentException("At least one search term must be provided", nameof(searchTerms));
+        }
+
+        var validTerms = searchTerms.Where(term => !string.IsNullOrWhiteSpace(term)).ToArray();
+        if (validTerms.Length == 0)
+        {
+            throw new ArgumentException("At least one non-empty search term must be provided", nameof(searchTerms));
+        }
+
+        return _tasks
+            .Where(task => validTerms.Any(term =>
+                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets tasks that contain all provided search terms (AND operation)
+    /// </summary>
+    /// <param name="searchTerms">Array of search terms that must all be present</param>
+    /// <returns>A list of tasks containing all search terms</returns>
+    /// <exception cref="ArgumentException">Thrown when searchTerms is null or empty</exception>
+    public IReadOnlyList<TodoTask> SearchTasksAllTerms(params string[] searchTerms)
+    {
+        if (searchTerms == null || searchTerms.Length == 0)
+        {
+            throw new ArgumentException("At least one search term must be provided", nameof(searchTerms));
+        }
+
+        var validTerms = searchTerms.Where(term => !string.IsNullOrWhiteSpace(term)).ToArray();
+        if (validTerms.Length == 0)
+        {
+            throw new ArgumentException("At least one non-empty search term must be provided", nameof(searchTerms));
+        }
+
+        return _tasks
+            .Where(task => validTerms.All(term =>
+                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets tasks sorted by multiple criteria
+    /// </summary>
+    /// <param name="primarySort">Primary sort criterion</param>
+    /// <param name="secondarySort">Secondary sort criterion</param>
+    /// <param name="descendingPrimary">Whether to sort primary criterion in descending order</param>
+    /// <param name="descendingSecondary">Whether to sort secondary criterion in descending order</param>
+    /// <returns>A list of tasks sorted by the specified criteria</returns>
+    public IReadOnlyList<TodoTask> GetTasksSorted(
+        TaskSortCriterion primarySort,
+        TaskSortCriterion? secondarySort = null,
+        bool descendingPrimary = false,
+        bool descendingSecondary = false)
+    {
+        var query = _tasks.AsQueryable();
+
+        // Apply primary sort
+        query = ApplySortCriterion(query, primarySort, descendingPrimary);
+
+        // Apply secondary sort if specified
+        if (secondarySort.HasValue)
+        {
+            query = ApplySortCriterion(query, secondarySort.Value, descendingSecondary, isSecondary: true);
+        }
+
+        return query.ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Helper method to apply sort criterion to a query
+    /// </summary>
+    private IQueryable<TodoTask> ApplySortCriterion(
+        IQueryable<TodoTask> query,
+        TaskSortCriterion sortCriterion,
+        bool descending,
+        bool isSecondary = false)
+    {
+        return sortCriterion switch
+        {
+            TaskSortCriterion.Title => isSecondary
+                ? (descending ? ((IOrderedQueryable<TodoTask>)query).ThenByDescending(t => t.Title)
+                              : ((IOrderedQueryable<TodoTask>)query).ThenBy(t => t.Title))
+                : (descending ? query.OrderByDescending(t => t.Title)
+                              : query.OrderBy(t => t.Title)),
+
+            TaskSortCriterion.Priority => isSecondary
+                ? (descending ? ((IOrderedQueryable<TodoTask>)query).ThenByDescending(t => t.Priority)
+                              : ((IOrderedQueryable<TodoTask>)query).ThenBy(t => t.Priority))
+                : (descending ? query.OrderByDescending(t => t.Priority)
+                              : query.OrderBy(t => t.Priority)),
+
+            TaskSortCriterion.DueDate => isSecondary
+                ? (descending ? ((IOrderedQueryable<TodoTask>)query).ThenByDescending(t => t.DueDate ?? DateTime.MaxValue)
+                              : ((IOrderedQueryable<TodoTask>)query).ThenBy(t => t.DueDate ?? DateTime.MaxValue))
+                : (descending ? query.OrderByDescending(t => t.DueDate ?? DateTime.MaxValue)
+                              : query.OrderBy(t => t.DueDate ?? DateTime.MaxValue)),
+
+            TaskSortCriterion.CompletionStatus => isSecondary
+                ? (descending ? ((IOrderedQueryable<TodoTask>)query).ThenByDescending(t => t.IsCompleted)
+                              : ((IOrderedQueryable<TodoTask>)query).ThenBy(t => t.IsCompleted))
+                : (descending ? query.OrderByDescending(t => t.IsCompleted)
+                              : query.OrderBy(t => t.IsCompleted)),
+
+            _ => query
+        };
+    }
+}
+
+/// <summary>
+/// Enumeration of task sort criteria
+/// </summary>
+public enum TaskSortCriterion
+{
+    Title,
+    Priority,
+    CreatedAt,
+    DueDate,
+    CompletionStatus
 }
