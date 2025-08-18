@@ -342,4 +342,153 @@ public class TodoService
     {
         return GetTasksByPriority(TaskPriority.Low);
     }
+
+    // Due Date Methods
+
+    /// <summary>
+    /// Adds a new task with the specified title and due date
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public TodoTask AddTask(string title, DateTime dueDate)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(title));
+        }
+
+        var task = new TodoTask(title.Trim(), dueDate);
+        _tasks.Add(task);
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with title, priority, and due date
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public TodoTask AddTask(string title, TaskPriority priority, DateTime dueDate)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(title));
+        }
+
+        var task = new TodoTask(title.Trim(), priority, dueDate);
+        _tasks.Add(task);
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with due date and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title, DateTime dueDate)
+    {
+        var task = AddTask(title, dueDate);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with priority and due date and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title, TaskPriority priority, DateTime dueDate)
+    {
+        var task = AddTask(title, priority, dueDate);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Updates the due date of an existing task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="newDueDate">The new due date for the task (null to remove due date)</param>
+    /// <returns>True if the task was found and updated, false otherwise</returns>
+    public bool UpdateTaskDueDate(Guid taskId, DateTime? newDueDate)
+    {
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            task.UpdateDueDate(newDueDate);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Updates task due date and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="newDueDate">The new due date for the task (null to remove due date)</param>
+    /// <returns>True if the task was found and updated, false otherwise</returns>
+    public async Task<bool> UpdateTaskDueDateAsync(Guid taskId, DateTime? newDueDate)
+    {
+        var result = UpdateTaskDueDate(taskId, newDueDate);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Gets all tasks that are overdue
+    /// </summary>
+    /// <returns>A list of overdue tasks</returns>
+    public IReadOnlyList<TodoTask> GetOverdueTasks()
+    {
+        return _tasks.Where(t => t.IsOverdue).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks due today
+    /// </summary>
+    /// <returns>A list of tasks due today</returns>
+    public IReadOnlyList<TodoTask> GetTasksDueToday()
+    {
+        return _tasks.Where(t => t.IsDueToday).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks due within the specified number of days
+    /// </summary>
+    /// <param name="days">Number of days to check</param>
+    /// <returns>A list of tasks due within the specified days</returns>
+    public IReadOnlyList<TodoTask> GetTasksDueWithin(int days)
+    {
+        return _tasks.Where(t => t.IsDueWithin(days)).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks with due dates
+    /// </summary>
+    /// <returns>A list of tasks that have due dates</returns>
+    public IReadOnlyList<TodoTask> GetTasksWithDueDates()
+    {
+        return _tasks.Where(t => t.DueDate.HasValue).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks without due dates
+    /// </summary>
+    /// <returns>A list of tasks that don't have due dates</returns>
+    public IReadOnlyList<TodoTask> GetTasksWithoutDueDates()
+    {
+        return _tasks.Where(t => !t.DueDate.HasValue).ToList().AsReadOnly();
+    }
 }

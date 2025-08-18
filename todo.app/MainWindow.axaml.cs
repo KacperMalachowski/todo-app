@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using todo.app.Services;
+using todo.app.Models;
 
 namespace todo.app;
 
@@ -12,7 +13,9 @@ public enum TaskFilter
 {
     All,
     Completed,
-    Pending
+    Pending,
+    Overdue,
+    DueToday
 }
 
 public partial class MainWindow : Window
@@ -30,6 +33,9 @@ public partial class MainWindow : Window
         ShowAllButton.Click += OnShowAllButtonClick;
         ShowCompletedButton.Click += OnShowCompletedButtonClick;
         ShowPendingButton.Click += OnShowPendingButtonClick;
+        ShowOverdueButton.Click += OnShowOverdueButtonClick;
+        ShowDueTodayButton.Click += OnShowDueTodayButtonClick;
+        ClearDueDateButton.Click += OnClearDueDateButtonClick;
 
         // Initialize the display
         UpdateFilterButtonStyles();
@@ -64,11 +70,32 @@ public partial class MainWindow : Window
 
         try
         {
-            // Use the async service to add the task (auto-saves)
-            await _todoService.AddTaskAsync(taskText);
+            // Get priority from combo box
+            var priority = PriorityComboBox.SelectedIndex switch
+            {
+                0 => TaskPriority.Low,
+                1 => TaskPriority.Medium,
+                2 => TaskPriority.High,
+                _ => TaskPriority.Medium
+            };
 
-            // Clear the input field
+            // Get due date from date picker
+            var dueDate = DueDatePicker.SelectedDate?.DateTime;
+
+            // Use the async service to add the task with priority and due date
+            if (dueDate.HasValue)
+            {
+                await _todoService.AddTaskAsync(taskText, priority, dueDate.Value);
+            }
+            else
+            {
+                await _todoService.AddTaskAsync(taskText, priority);
+            }
+
+            // Clear the input fields
             NewTaskTextBox.Text = string.Empty;
+            PriorityComboBox.SelectedIndex = 1; // Reset to Medium
+            DueDatePicker.SelectedDate = null;
 
             // Update the UI
             RefreshTaskList();
@@ -95,14 +122,23 @@ public partial class MainWindow : Window
         {
             TaskFilter.Completed => _todoService.GetCompletedTasks(),
             TaskFilter.Pending => _todoService.GetPendingTasks(),
+            TaskFilter.Overdue => _todoService.GetOverdueTasks(),
+            TaskFilter.DueToday => _todoService.GetTasksDueToday(),
             _ => _todoService.Tasks
         };
 
         // Add filtered tasks
         foreach (var task in tasksToShow)
         {
-            // Create a horizontal stack panel for checkbox + text
-            var stackPanel = new StackPanel
+            // Create a vertical stack panel for task content
+            var taskContent = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Vertical,
+                Spacing = 5
+            };
+
+            // Create main row with checkbox, text, and delete button
+            var mainRow = new StackPanel
             {
                 Orientation = Avalonia.Layout.Orientation.Horizontal,
                 Spacing = 10
@@ -151,7 +187,7 @@ public partial class MainWindow : Window
             // Add double-click event for editing
             textBlock.DoubleTapped += (sender, e) =>
             {
-                StartEditingTask(task, stackPanel);
+                StartEditingTask(task, mainRow);
             };
 
             // Create delete button
@@ -186,21 +222,93 @@ public partial class MainWindow : Window
                 }
             };
 
-            // Add checkbox, text, and delete button to stack panel
-            stackPanel.Children.Add(checkBox);
-            stackPanel.Children.Add(textBlock);
-            stackPanel.Children.Add(deleteButton);
+            // Add checkbox, text, and delete button to main row
+            mainRow.Children.Add(checkBox);
+            mainRow.Children.Add(textBlock);
+            mainRow.Children.Add(deleteButton);
+
+            // Add main row to task content
+            taskContent.Children.Add(mainRow);
+
+            // Create metadata row for priority and due date
+            var metadataRow = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 15,
+                Margin = new Avalonia.Thickness(30, 0, 0, 0) // Indent to align with text
+            };
+
+            // Add priority badge
+            var priorityBadge = new Border
+            {
+                Background = task.Priority switch
+                {
+                    TaskPriority.High => Avalonia.Media.Brushes.Red,
+                    TaskPriority.Medium => Avalonia.Media.Brushes.Orange,
+                    TaskPriority.Low => Avalonia.Media.Brushes.Green,
+                    _ => Avalonia.Media.Brushes.Gray
+                },
+                CornerRadius = new Avalonia.CornerRadius(3),
+                Padding = new Avalonia.Thickness(5, 2),
+                Child = new TextBlock
+                {
+                    Text = $"Priority: {task.Priority}",
+                    FontSize = 12,
+                    Foreground = Avalonia.Media.Brushes.White
+                }
+            };
+
+            metadataRow.Children.Add(priorityBadge);
+
+            // Add due date info if present
+            if (task.DueDate.HasValue)
+            {
+                var dueDateText = task.DueDate.Value.Date == DateTime.Today
+                    ? "Due Today"
+                    : task.IsOverdue
+                        ? $"Overdue ({task.DueDate.Value:MMM dd})"
+                        : $"Due {task.DueDate.Value:MMM dd}";
+
+                var dueDateBadge = new Border
+                {
+                    Background = task.IsOverdue
+                        ? Avalonia.Media.Brushes.DarkRed
+                        : task.IsDueToday
+                            ? Avalonia.Media.Brushes.DarkOrange
+                            : Avalonia.Media.Brushes.DarkBlue,
+                    CornerRadius = new Avalonia.CornerRadius(3),
+                    Padding = new Avalonia.Thickness(5, 2),
+                    Child = new TextBlock
+                    {
+                        Text = dueDateText,
+                        FontSize = 12,
+                        Foreground = Avalonia.Media.Brushes.White
+                    }
+                };
+
+                metadataRow.Children.Add(dueDateBadge);
+            }
+
+            // Add metadata row to task content
+            taskContent.Children.Add(metadataRow);
+
+            // Determine border color based on task status
+            var borderBrush = task.IsCompleted
+                ? Avalonia.Media.Brushes.LightGreen
+                : task.IsOverdue
+                    ? Avalonia.Media.Brushes.LightCoral
+                    : task.IsDueToday
+                        ? Avalonia.Media.Brushes.LightGoldenrodYellow
+                        : Avalonia.Media.Brushes.LightGray;
 
             // Create border container
             var taskBorder = new Border
             {
-                Background = task.IsCompleted ?
-                    Avalonia.Media.Brushes.LightGreen :
-                    Avalonia.Media.Brushes.LightGray,
+                Background = borderBrush,
                 Padding = new Avalonia.Thickness(10),
                 Margin = new Avalonia.Thickness(0, 0, 0, 5),
                 CornerRadius = new Avalonia.CornerRadius(5),
-                Child = stackPanel
+                Child = taskContent
             };
 
             TodoListPanel.Children.Add(taskBorder);
@@ -213,6 +321,7 @@ public partial class MainWindow : Window
         TotalCountLabel.Text = _todoService.TotalTaskCount.ToString();
         CompletedCountLabel.Text = _todoService.CompletedTaskCount.ToString();
         PendingCountLabel.Text = _todoService.PendingTaskCount.ToString();
+        OverdueCountLabel.Text = _todoService.GetOverdueTasks().Count().ToString();
     }
 
     private void OnShowAllButtonClick(object? sender, RoutedEventArgs e)
@@ -236,12 +345,33 @@ public partial class MainWindow : Window
         RefreshTaskList();
     }
 
+    private void OnShowOverdueButtonClick(object? sender, RoutedEventArgs e)
+    {
+        _currentFilter = TaskFilter.Overdue;
+        UpdateFilterButtonStyles();
+        RefreshTaskList();
+    }
+
+    private void OnShowDueTodayButtonClick(object? sender, RoutedEventArgs e)
+    {
+        _currentFilter = TaskFilter.DueToday;
+        UpdateFilterButtonStyles();
+        RefreshTaskList();
+    }
+
+    private void OnClearDueDateButtonClick(object? sender, RoutedEventArgs e)
+    {
+        DueDatePicker.SelectedDate = null;
+    }
+
     private void UpdateFilterButtonStyles()
     {
         // Reset all buttons to inactive style
         ShowAllButton.Background = Brushes.Gray;
         ShowCompletedButton.Background = Brushes.Gray;
         ShowPendingButton.Background = Brushes.Gray;
+        ShowOverdueButton.Background = Brushes.Gray;
+        ShowDueTodayButton.Background = Brushes.Gray;
 
         // Highlight the active filter button
         switch (_currentFilter)
@@ -254,6 +384,12 @@ public partial class MainWindow : Window
                 break;
             case TaskFilter.Pending:
                 ShowPendingButton.Background = Brushes.Orange;
+                break;
+            case TaskFilter.Overdue:
+                ShowOverdueButton.Background = Brushes.Red;
+                break;
+            case TaskFilter.DueToday:
+                ShowDueTodayButton.Background = Brushes.DarkOrange;
                 break;
         }
     }

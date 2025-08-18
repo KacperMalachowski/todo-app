@@ -765,4 +765,209 @@ public class TodoServiceTests
         Assert.Equal(2, lowPriorityTasks.Count);
         Assert.All(lowPriorityTasks, task => Assert.Equal(todo.app.Models.TaskPriority.Low, task.Priority));
     }
+
+    // Due Date Tests
+    [Fact]
+    public void AddTask_WithDueDate_ShouldAddTaskWithCorrectDueDate()
+    {
+        // Arrange
+        var service = new TodoService();
+        const string taskTitle = "Task with Due Date";
+        var dueDate = DateTime.Today.AddDays(7);
+
+        // Act
+        var task = service.AddTask(taskTitle, dueDate);
+
+        // Assert
+        Assert.Equal(taskTitle, task.Title);
+        Assert.Equal(dueDate, task.DueDate);
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority);
+        Assert.Single(service.Tasks);
+    }
+
+    [Fact]
+    public void AddTask_WithPriorityAndDueDate_ShouldAddTaskWithCorrectProperties()
+    {
+        // Arrange
+        var service = new TodoService();
+        const string taskTitle = "Important Deadline";
+        const todo.app.Models.TaskPriority priority = todo.app.Models.TaskPriority.High;
+        var dueDate = DateTime.Today.AddDays(3);
+
+        // Act
+        var task = service.AddTask(taskTitle, priority, dueDate);
+
+        // Assert
+        Assert.Equal(taskTitle, task.Title);
+        Assert.Equal(priority, task.Priority);
+        Assert.Equal(dueDate, task.DueDate);
+        Assert.Single(service.Tasks);
+    }
+
+    [Fact]
+    public async Task AddTaskAsync_WithDueDate_ShouldAddTaskAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        var dueDate = DateTime.Today.AddDays(5);
+
+        try
+        {
+            // Act
+            var task = await service.AddTaskAsync("Test Task", dueDate);
+
+            // Assert
+            Assert.Equal(dueDate, task.DueDate);
+            Assert.Single(service.Tasks);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Single(loadedTasks);
+            Assert.Equal(dueDate, loadedTasks[0].DueDate);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public void UpdateTaskDueDate_WithValidId_ShouldUpdateDueDate()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test Task");
+        var newDueDate = DateTime.Today.AddDays(10);
+
+        // Act
+        var result = service.UpdateTaskDueDate(task.Id, newDueDate);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(newDueDate, task.DueDate);
+    }
+
+    [Fact]
+    public void UpdateTaskDueDate_WithNullDueDate_ShouldRemoveDueDate()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test Task", DateTime.Today.AddDays(1));
+
+        // Act
+        var result = service.UpdateTaskDueDate(task.Id, null);
+
+        // Assert
+        Assert.True(result);
+        Assert.Null(task.DueDate);
+    }
+
+    [Fact]
+    public void UpdateTaskDueDate_WithInvalidId_ShouldReturnFalse()
+    {
+        // Arrange
+        var service = new TodoService();
+        var invalidId = Guid.NewGuid();
+
+        // Act
+        var result = service.UpdateTaskDueDate(invalidId, DateTime.Today);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void GetOverdueTasks_ShouldReturnOnlyOverdueTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        var overdueTask = service.AddTask("Overdue Task", DateTime.Today.AddDays(-2));
+        var todayTask = service.AddTask("Today Task", DateTime.Today);
+        var futureTask = service.AddTask("Future Task", DateTime.Today.AddDays(2));
+        var noDateTask = service.AddTask("No Date Task");
+
+        // Act
+        var overdueTasks = service.GetOverdueTasks();
+
+        // Assert
+        Assert.Single(overdueTasks);
+        Assert.Equal(overdueTask.Id, overdueTasks[0].Id);
+    }
+
+    [Fact]
+    public void GetTasksDueToday_ShouldReturnOnlyTasksDueToday()
+    {
+        // Arrange
+        var service = new TodoService();
+        var overdueTask = service.AddTask("Overdue Task", DateTime.Today.AddDays(-1));
+        var todayTask1 = service.AddTask("Today Task 1", DateTime.Today);
+        var todayTask2 = service.AddTask("Today Task 2", DateTime.Today);
+        var futureTask = service.AddTask("Future Task", DateTime.Today.AddDays(1));
+
+        // Act
+        var todayTasks = service.GetTasksDueToday();
+
+        // Assert
+        Assert.Equal(2, todayTasks.Count);
+        Assert.Contains(todayTasks, t => t.Id == todayTask1.Id);
+        Assert.Contains(todayTasks, t => t.Id == todayTask2.Id);
+    }
+
+    [Fact]
+    public void GetTasksDueWithin_ShouldReturnTasksWithinSpecifiedDays()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task1 = service.AddTask("Task 1", DateTime.Today.AddDays(1));
+        var task2 = service.AddTask("Task 2", DateTime.Today.AddDays(3));
+        var task3 = service.AddTask("Task 3", DateTime.Today.AddDays(8));
+        var task4 = service.AddTask("Task 4", DateTime.Today.AddDays(-1));
+
+        // Act
+        var tasksWithinWeek = service.GetTasksDueWithin(7);
+
+        // Assert
+        Assert.Equal(2, tasksWithinWeek.Count);
+        Assert.Contains(tasksWithinWeek, t => t.Id == task1.Id);
+        Assert.Contains(tasksWithinWeek, t => t.Id == task2.Id);
+    }
+
+    [Fact]
+    public void GetTasksWithDueDates_ShouldReturnOnlyTasksWithDueDates()
+    {
+        // Arrange
+        var service = new TodoService();
+        var taskWithDate = service.AddTask("Task with Date", DateTime.Today.AddDays(1));
+        var taskWithoutDate = service.AddTask("Task without Date");
+
+        // Act
+        var tasksWithDates = service.GetTasksWithDueDates();
+
+        // Assert
+        Assert.Single(tasksWithDates);
+        Assert.Equal(taskWithDate.Id, tasksWithDates[0].Id);
+    }
+
+    [Fact]
+    public void GetTasksWithoutDueDates_ShouldReturnOnlyTasksWithoutDueDates()
+    {
+        // Arrange
+        var service = new TodoService();
+        var taskWithDate = service.AddTask("Task with Date", DateTime.Today.AddDays(1));
+        var taskWithoutDate1 = service.AddTask("Task without Date 1");
+        var taskWithoutDate2 = service.AddTask("Task without Date 2");
+
+        // Act
+        var tasksWithoutDates = service.GetTasksWithoutDueDates();
+
+        // Assert
+        Assert.Equal(2, tasksWithoutDates.Count);
+        Assert.Contains(tasksWithoutDates, t => t.Id == taskWithoutDate1.Id);
+        Assert.Contains(tasksWithoutDates, t => t.Id == taskWithoutDate2.Id);
+    }
 }
