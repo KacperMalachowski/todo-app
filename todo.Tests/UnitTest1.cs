@@ -151,4 +151,97 @@ public class TodoTaskTests
         Assert.Equal(originalCompletedAt, task.CompletedAt);
         Assert.Equal(originalIsCompleted, task.IsCompleted);
     }
+
+    // Priority Tests
+    [Fact]
+    public void Constructor_ShouldSetDefaultMediumPriority()
+    {
+        // Act
+        var task = new TodoTask();
+
+        // Assert
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority);
+    }
+
+    [Fact]
+    public void Constructor_WithTitle_ShouldSetDefaultMediumPriority()
+    {
+        // Act
+        var task = new TodoTask("Test Task");
+
+        // Assert
+        Assert.Equal("Test Task", task.Title);
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority);
+    }
+
+    [Fact]
+    public void Constructor_WithTitleAndPriority_ShouldSetPriority()
+    {
+        // Arrange
+        const string title = "High Priority Task";
+        const todo.app.Models.TaskPriority priority = todo.app.Models.TaskPriority.High;
+
+        // Act
+        var task = new TodoTask(title, priority);
+
+        // Assert
+        Assert.Equal(title, task.Title);
+        Assert.Equal(priority, task.Priority);
+    }
+
+    [Theory]
+    [InlineData(todo.app.Models.TaskPriority.Low)]
+    [InlineData(todo.app.Models.TaskPriority.High)]
+    public void UpdatePriority_ShouldUpdatePriority(todo.app.Models.TaskPriority newPriority)
+    {
+        // Arrange
+        var task = new TodoTask("Test Task"); // Starts with Medium priority
+        var originalPriority = task.Priority;
+
+        // Act
+        task.UpdatePriority(newPriority);
+
+        // Assert
+        Assert.Equal(newPriority, task.Priority);
+        Assert.NotEqual(originalPriority, task.Priority);
+    }
+
+    [Fact]
+    public void UpdatePriority_WithSamePriority_ShouldStillUpdatePriority()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task");
+        var originalPriority = task.Priority; // Medium
+
+        // Act
+        task.UpdatePriority(todo.app.Models.TaskPriority.Medium);
+
+        // Assert
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority);
+        Assert.Equal(originalPriority, task.Priority);
+    }
+
+    [Fact]
+    public void UpdatePriority_ShouldNotAffectOtherProperties()
+    {
+        // Arrange
+        var task = new TodoTask("Test Task");
+        task.MarkAsCompleted();
+        var originalId = task.Id;
+        var originalTitle = task.Title;
+        var originalCreatedAt = task.CreatedAt;
+        var originalCompletedAt = task.CompletedAt;
+        var originalIsCompleted = task.IsCompleted;
+
+        // Act
+        task.UpdatePriority(todo.app.Models.TaskPriority.High);
+
+        // Assert
+        Assert.Equal(todo.app.Models.TaskPriority.High, task.Priority);
+        Assert.Equal(originalId, task.Id);
+        Assert.Equal(originalTitle, task.Title);
+        Assert.Equal(originalCreatedAt, task.CreatedAt);
+        Assert.Equal(originalCompletedAt, task.CompletedAt);
+        Assert.Equal(originalIsCompleted, task.IsCompleted);
+    }
 }

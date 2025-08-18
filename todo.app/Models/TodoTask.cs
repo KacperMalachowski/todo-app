@@ -33,6 +33,11 @@ public class TodoTask
     public DateTime? CompletedAt { get; set; }
 
     /// <summary>
+    /// The priority level of the task
+    /// </summary>
+    public TaskPriority Priority { get; set; }
+
+    /// <summary>
     /// Creates a new TodoTask with default values
     /// </summary>
     public TodoTask()
@@ -40,6 +45,7 @@ public class TodoTask
         Id = Guid.NewGuid();
         CreatedAt = DateTime.UtcNow;
         IsCompleted = false;
+        Priority = TaskPriority.Medium;
     }
 
     /// <summary>
@@ -49,6 +55,16 @@ public class TodoTask
     public TodoTask(string title) : this()
     {
         Title = title ?? throw new ArgumentNullException(nameof(title));
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title and priority
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    public TodoTask(string title, TaskPriority priority) : this(title)
+    {
+        Priority = priority;
     }
 
     /// <summary>
@@ -84,5 +100,14 @@ public class TodoTask
             throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(newTitle));
         }
         Title = newTitle;
+    }
+
+    /// <summary>
+    /// Updates the task priority
+    /// </summary>
+    /// <param name="newPriority">The new priority for the task</param>
+    public void UpdatePriority(TaskPriority newPriority)
+    {
+        Priority = newPriority;
     }
 }

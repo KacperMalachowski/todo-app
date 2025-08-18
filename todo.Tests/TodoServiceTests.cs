@@ -564,4 +564,205 @@ public class TodoServiceTests
             }
         }
     }
+
+    // Priority Tests
+    [Fact]
+    public void AddTask_WithPriority_ShouldAddTaskWithCorrectPriority()
+    {
+        // Arrange
+        var service = new TodoService();
+        const string taskTitle = "High Priority Task";
+        const todo.app.Models.TaskPriority priority = todo.app.Models.TaskPriority.High;
+
+        // Act
+        var task = service.AddTask(taskTitle, priority);
+
+        // Assert
+        Assert.NotNull(task);
+        Assert.Equal(taskTitle, task.Title);
+        Assert.Equal(priority, task.Priority);
+        Assert.Single(service.Tasks);
+    }
+
+    [Fact]
+    public async Task AddTaskAsync_WithPriority_ShouldAddTaskWithPriorityAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        const string taskTitle = "Low Priority Task";
+        const todo.app.Models.TaskPriority priority = todo.app.Models.TaskPriority.Low;
+
+        try
+        {
+            // Act
+            var task = await service.AddTaskAsync(taskTitle, priority);
+
+            // Assert
+            Assert.Equal(taskTitle, task.Title);
+            Assert.Equal(priority, task.Priority);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Single(loadedTasks);
+            Assert.Equal(taskTitle, loadedTasks[0].Title);
+            Assert.Equal(priority, loadedTasks[0].Priority);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Fact]
+    public void UpdateTaskPriority_WithValidId_ShouldUpdatePriority()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test Task");
+        const todo.app.Models.TaskPriority newPriority = todo.app.Models.TaskPriority.High;
+
+        // Act
+        var result = service.UpdateTaskPriority(task.Id, newPriority);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(newPriority, task.Priority);
+    }
+
+    [Fact]
+    public void UpdateTaskPriority_WithInvalidId_ShouldReturnFalse()
+    {
+        // Arrange
+        var service = new TodoService();
+        var invalidId = Guid.NewGuid();
+
+        // Act
+        var result = service.UpdateTaskPriority(invalidId, todo.app.Models.TaskPriority.High);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task UpdateTaskPriorityAsync_ShouldUpdateAndSave()
+    {
+        // Arrange
+        var testFile = GetTestFilePath();
+        var persistenceService = new DataPersistenceService(testFile);
+        var service = new TodoService(persistenceService);
+        var task = await service.AddTaskAsync("Test Task");
+        const todo.app.Models.TaskPriority newPriority = todo.app.Models.TaskPriority.Low;
+
+        try
+        {
+            // Act
+            var result = await service.UpdateTaskPriorityAsync(task.Id, newPriority);
+
+            // Assert
+            Assert.True(result);
+            Assert.Equal(newPriority, task.Priority);
+
+            // Verify persistence
+            var loadedTasks = await persistenceService.LoadTasksAsync();
+            Assert.Single(loadedTasks);
+            Assert.Equal(newPriority, loadedTasks[0].Priority);
+        }
+        finally
+        {
+            if (File.Exists(testFile))
+            {
+                File.Delete(testFile);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(todo.app.Models.TaskPriority.Low)]
+    [InlineData(todo.app.Models.TaskPriority.Medium)]
+    [InlineData(todo.app.Models.TaskPriority.High)]
+    public void GetTasksByPriority_ShouldReturnTasksWithSpecifiedPriority(todo.app.Models.TaskPriority priority)
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Low Task", todo.app.Models.TaskPriority.Low);
+        service.AddTask("Medium Task", todo.app.Models.TaskPriority.Medium);
+        service.AddTask("High Task", todo.app.Models.TaskPriority.High);
+        service.AddTask("Another Medium Task", todo.app.Models.TaskPriority.Medium);
+
+        // Act
+        var filteredTasks = service.GetTasksByPriority(priority);
+
+        // Assert
+        Assert.All(filteredTasks, task => Assert.Equal(priority, task.Priority));
+        
+        if (priority == todo.app.Models.TaskPriority.Medium)
+        {
+            Assert.Equal(2, filteredTasks.Count);
+        }
+        else
+        {
+            Assert.Single(filteredTasks);
+        }
+    }
+
+    [Fact]
+    public void GetHighPriorityTasks_ShouldReturnOnlyHighPriorityTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Low Task", todo.app.Models.TaskPriority.Low);
+        service.AddTask("High Task 1", todo.app.Models.TaskPriority.High);
+        service.AddTask("Medium Task", todo.app.Models.TaskPriority.Medium);
+        service.AddTask("High Task 2", todo.app.Models.TaskPriority.High);
+
+        // Act
+        var highPriorityTasks = service.GetHighPriorityTasks();
+
+        // Assert
+        Assert.Equal(2, highPriorityTasks.Count);
+        Assert.All(highPriorityTasks, task => Assert.Equal(todo.app.Models.TaskPriority.High, task.Priority));
+        Assert.Contains(highPriorityTasks, t => t.Title == "High Task 1");
+        Assert.Contains(highPriorityTasks, t => t.Title == "High Task 2");
+    }
+
+    [Fact]
+    public void GetMediumPriorityTasks_ShouldReturnOnlyMediumPriorityTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Low Task", todo.app.Models.TaskPriority.Low);
+        service.AddTask("Medium Task 1", todo.app.Models.TaskPriority.Medium);
+        service.AddTask("High Task", todo.app.Models.TaskPriority.High);
+        service.AddTask("Medium Task 2", todo.app.Models.TaskPriority.Medium);
+
+        // Act
+        var mediumPriorityTasks = service.GetMediumPriorityTasks();
+
+        // Assert
+        Assert.Equal(2, mediumPriorityTasks.Count);
+        Assert.All(mediumPriorityTasks, task => Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority));
+    }
+
+    [Fact]
+    public void GetLowPriorityTasks_ShouldReturnOnlyLowPriorityTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Low Task 1", todo.app.Models.TaskPriority.Low);
+        service.AddTask("Medium Task", todo.app.Models.TaskPriority.Medium);
+        service.AddTask("High Task", todo.app.Models.TaskPriority.High);
+        service.AddTask("Low Task 2", todo.app.Models.TaskPriority.Low);
+
+        // Act
+        var lowPriorityTasks = service.GetLowPriorityTasks();
+
+        // Assert
+        Assert.Equal(2, lowPriorityTasks.Count);
+        Assert.All(lowPriorityTasks, task => Assert.Equal(todo.app.Models.TaskPriority.Low, task.Priority));
+    }
 }
