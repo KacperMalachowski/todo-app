@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
@@ -23,8 +24,96 @@
                    Margin="0,0,0,20"
                    HorizontalAlignment="Center"/>
         
+        <!-- Search and Filter Panel -->
+        <Border Grid.Row="1"
+                Background="LightGray"
+                Padding="15"
+                Margin="0,0,0,20"
+                CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Search Bar -->
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBox Grid.Column="0"
+                             Name="SearchTextBox"
+                             Watermark="Search tasks..."
+                             FontSize="16"
+                             Height="40"
+                             Margin="0,0,10,0"/>
+                    
+                    <Button Grid.Column="1"
+                            Name="SearchButton"
+                            Content="Search"
+                            FontSize="16"
+                            Height="40"
+                            Width="100"
+                            Margin="0,0,10,0"
+                            Background="DarkSlateBlue"
+                            Foreground="White"/>
+                    
+                    <Button Grid.Column="2"
+                            Name="ClearSearchButton"
+                            Content="Clear"
+                            FontSize="16"
+                            Height="40"
+                            Width="80"
+                            Background="Gray"
+                            Foreground="White"/>
+                </Grid>
+                
+                <!-- Advanced Filter Options -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="Priority:" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox Name="FilterPriorityComboBox" Width="100" Height="30">
+                            <ComboBoxItem Content="All" IsSelected="True"/>
+                            <ComboBoxItem Content="Low"/>
+                            <ComboBoxItem Content="Medium"/>
+                            <ComboBoxItem Content="High"/>
+                        </ComboBox>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="Status:" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox Name="FilterStatusComboBox" Width="120" Height="30">
+                            <ComboBoxItem Content="All" IsSelected="True"/>
+                            <ComboBoxItem Content="Pending"/>
+                            <ComboBoxItem Content="Completed"/>
+                        </ComboBox>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="Sort by:" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <ComboBox Name="SortComboBox" Width="120" Height="30">
+                            <ComboBoxItem Content="Title" IsSelected="True"/>
+                            <ComboBoxItem Content="Priority"/>
+                            <ComboBoxItem Content="Due Date"/>
+                            <ComboBoxItem Content="Created"/>
+                            <ComboBoxItem Content="Status"/>
+                        </ComboBox>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+        
         <!-- Statistics Panel -->
-        <Border Grid.Row="1" 
+        <Border Grid.Row="2" 
                 Background="LightBlue" 
                 Padding="15" 
                 Margin="0,0,0,20" 
@@ -87,7 +176,7 @@
         </Border>
         
         <!-- Filter Buttons -->
-        <Grid Grid.Row="2" Margin="0,0,0,20">
+        <Grid Grid.Row="3" Margin="0,0,0,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -157,7 +246,7 @@
         </Grid>
         
         <!-- Add Task Input -->
-        <Grid Grid.Row="3" Margin="0,0,0,20">
+        <Grid Grid.Row="4" Margin="0,0,0,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -224,7 +313,7 @@
         </Grid>
         
         <!-- Todo List -->
-        <ScrollViewer Grid.Row="4">
+        <ScrollViewer Grid.Row="5">
             <StackPanel Name="TodoListPanel">
                 <!-- Tasks will be added dynamically -->
             </StackPanel>

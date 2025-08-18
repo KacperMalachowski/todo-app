@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -15,13 +16,15 @@ public enum TaskFilter
     Completed,
     Pending,
     Overdue,
-    DueToday
+    DueToday,
+    Search
 }
 
 public partial class MainWindow : Window
 {
     private readonly TodoService _todoService;
     private TaskFilter _currentFilter = TaskFilter.All;
+    private string _currentSearchTerm = string.Empty;
 
     public MainWindow()
     {
@@ -36,6 +39,16 @@ public partial class MainWindow : Window
         ShowOverdueButton.Click += OnShowOverdueButtonClick;
         ShowDueTodayButton.Click += OnShowDueTodayButtonClick;
         ClearDueDateButton.Click += OnClearDueDateButtonClick;
+
+        // Wire up search events
+        SearchButton.Click += OnSearchButtonClick;
+        ClearSearchButton.Click += OnClearSearchButtonClick;
+        SearchTextBox.KeyDown += OnSearchTextBoxKeyDown;
+
+        // Wire up filter change events
+        FilterPriorityComboBox.SelectionChanged += OnFilterChanged;
+        FilterStatusComboBox.SelectionChanged += OnFilterChanged;
+        SortComboBox.SelectionChanged += OnFilterChanged;
 
         // Initialize the display
         UpdateFilterButtonStyles();
@@ -117,15 +130,8 @@ public partial class MainWindow : Window
         // Clear existing items
         TodoListPanel.Children.Clear();
 
-        // Get filtered tasks from the service
-        var tasksToShow = _currentFilter switch
-        {
-            TaskFilter.Completed => _todoService.GetCompletedTasks(),
-            TaskFilter.Pending => _todoService.GetPendingTasks(),
-            TaskFilter.Overdue => _todoService.GetOverdueTasks(),
-            TaskFilter.DueToday => _todoService.GetTasksDueToday(),
-            _ => _todoService.Tasks
-        };
+        // Get filtered and sorted tasks
+        var tasksToShow = GetFilteredAndSortedTasks();
 
         // Add filtered tasks
         foreach (var task in tasksToShow)
@@ -315,6 +321,102 @@ public partial class MainWindow : Window
         }
     }
 
+    private IReadOnlyList<TodoTask> GetFilteredAndSortedTasks()
+    {
+        IReadOnlyList<TodoTask> tasks;
+
+        // Apply search and filtering
+        if (!string.IsNullOrWhiteSpace(_currentSearchTerm))
+        {
+            // Apply search with filters
+            var priorityFilter = GetSelectedPriority();
+            var statusFilter = GetSelectedStatus();
+
+            tasks = _todoService.SearchTasksWithFilters(
+                _currentSearchTerm,
+                isCompleted: statusFilter,
+                priority: priorityFilter,
+                includeOverdue: _currentFilter == TaskFilter.Overdue,
+                includeDueToday: _currentFilter == TaskFilter.DueToday);
+        }
+        else
+        {
+            // Get base filtered tasks
+            var baseTasks = _currentFilter switch
+            {
+                TaskFilter.Completed => _todoService.GetCompletedTasks(),
+                TaskFilter.Pending => _todoService.GetPendingTasks(),
+                TaskFilter.Overdue => _todoService.GetOverdueTasks(),
+                TaskFilter.DueToday => _todoService.GetTasksDueToday(),
+                _ => _todoService.Tasks
+            };
+
+            // Apply additional filters if any are selected
+            var priorityFilter = GetSelectedPriority();
+            var statusFilter = GetSelectedStatus();
+
+            if (priorityFilter.HasValue || statusFilter.HasValue)
+            {
+                // If we have a basic filter and additional filters, we need to combine them
+                tasks = _todoService.FilterTasks(
+                    isCompleted: statusFilter,
+                    priority: priorityFilter,
+                    includeOverdue: _currentFilter == TaskFilter.Overdue,
+                    includeDueToday: _currentFilter == TaskFilter.DueToday);
+            }
+            else
+            {
+                tasks = baseTasks;
+            }
+        }
+
+        // Apply sorting
+        var sortCriterion = GetSelectedSortCriterion();
+        if (tasks.Any())
+        {
+            // Convert to TodoService and sort
+            var sortedTasks = _todoService.GetTasksSorted(sortCriterion);
+
+            // Filter the sorted results to match our current filter
+            return sortedTasks.Where(t => tasks.Any(ft => ft.Id == t.Id)).ToList();
+        }
+
+        return tasks;
+    }
+
+    private TaskPriority? GetSelectedPriority()
+    {
+        return FilterPriorityComboBox.SelectedIndex switch
+        {
+            1 => TaskPriority.Low,
+            2 => TaskPriority.Medium,
+            3 => TaskPriority.High,
+            _ => null
+        };
+    }
+
+    private bool? GetSelectedStatus()
+    {
+        return FilterStatusComboBox.SelectedIndex switch
+        {
+            1 => false, // Pending
+            2 => true,  // Completed
+            _ => null   // All
+        };
+    }
+
+    private TaskSortCriterion GetSelectedSortCriterion()
+    {
+        return SortComboBox.SelectedIndex switch
+        {
+            1 => TaskSortCriterion.Priority,
+            2 => TaskSortCriterion.DueDate,
+            3 => TaskSortCriterion.CreatedAt,
+            4 => TaskSortCriterion.CompletionStatus,
+            _ => TaskSortCriterion.Title
+        };
+    }
+
     private void UpdateStatistics()
     {
         // Update the statistics labels with current counts
@@ -364,6 +466,52 @@ public partial class MainWindow : Window
         DueDatePicker.SelectedDate = null;
     }
 
+    private void OnSearchButtonClick(object? sender, RoutedEventArgs e)
+    {
+        PerformSearch();
+    }
+
+    private void OnClearSearchButtonClick(object? sender, RoutedEventArgs e)
+    {
+        SearchTextBox.Text = string.Empty;
+        _currentSearchTerm = string.Empty;
+        _currentFilter = TaskFilter.All;
+        UpdateFilterButtonStyles();
+        RefreshTaskList();
+    }
+
+    private void OnSearchTextBoxKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key == Avalonia.Input.Key.Enter)
+        {
+            PerformSearch();
+        }
+    }
+
+    private void OnFilterChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (IsInitialized) // Prevent events during initialization
+        {
+            RefreshTaskList();
+        }
+    }
+
+    private void PerformSearch()
+    {
+        var searchTerm = SearchTextBox.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            _currentSearchTerm = searchTerm;
+            _currentFilter = TaskFilter.Search;
+            UpdateFilterButtonStyles();
+            RefreshTaskList();
+        }
+        else
+        {
+            OnClearSearchButtonClick(null, new RoutedEventArgs());
+        }
+    }
+
     private void UpdateFilterButtonStyles()
     {
         // Reset all buttons to inactive style
@@ -390,6 +538,9 @@ public partial class MainWindow : Window
                 break;
             case TaskFilter.DueToday:
                 ShowDueTodayButton.Background = Brushes.DarkOrange;
+                break;
+            case TaskFilter.Search:
+                // Don't highlight any filter button when searching
                 break;
         }
     }
