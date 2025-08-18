@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace todo.app.Models;
 
@@ -41,6 +43,11 @@ public class TodoTask
     /// When the task is due (optional)
     /// </summary>
     public DateTime? DueDate { get; set; }
+
+    /// <summary>
+    /// Categories/tags associated with this task
+    /// </summary>
+    public List<string> Categories { get; set; } = new();
 
     /// <summary>
     /// Creates a new TodoTask with default values
@@ -89,6 +96,53 @@ public class TodoTask
     /// <param name="priority">The task priority</param>
     /// <param name="dueDate">The task due date</param>
     public TodoTask(string title, TaskPriority priority, DateTime dueDate) : this(title, priority)
+    {
+        DueDate = dueDate;
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="categories">The task categories</param>
+    public TodoTask(string title, IEnumerable<string> categories) : this(title)
+    {
+        Categories = categories?.Where(c => !string.IsNullOrWhiteSpace(c))
+                               .Select(c => c.Trim())
+                               .Distinct()
+                               .ToList() ?? new List<string>();
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title, priority, and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="categories">The task categories</param>
+    public TodoTask(string title, TaskPriority priority, IEnumerable<string> categories) : this(title, categories)
+    {
+        Priority = priority;
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title, due date, and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <param name="categories">The task categories</param>
+    public TodoTask(string title, DateTime dueDate, IEnumerable<string> categories) : this(title, categories)
+    {
+        DueDate = dueDate;
+    }
+
+    /// <summary>
+    /// Creates a new TodoTask with the specified title, priority, due date, and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <param name="categories">The task categories</param>
+    public TodoTask(string title, TaskPriority priority, DateTime dueDate, IEnumerable<string> categories) : this(title, priority, categories)
     {
         DueDate = dueDate;
     }
@@ -198,4 +252,136 @@ public class TodoTask
             return days;
         }
     }
+
+    // Category Management Methods
+
+    /// <summary>
+    /// Adds a category to the task if it doesn't already exist
+    /// </summary>
+    /// <param name="category">The category to add</param>
+    /// <returns>True if the category was added, false if it already existed</returns>
+    /// <exception cref="ArgumentException">Thrown when category is null, empty, or whitespace</exception>
+    public bool AddCategory(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            throw new ArgumentException("Category cannot be null, empty, or whitespace", nameof(category));
+        }
+
+        var trimmedCategory = category.Trim();
+        if (Categories.Contains(trimmedCategory, StringComparer.OrdinalIgnoreCase))
+        {
+            return false; // Category already exists
+        }
+
+        Categories.Add(trimmedCategory);
+        return true;
+    }
+
+    /// <summary>
+    /// Removes a category from the task
+    /// </summary>
+    /// <param name="category">The category to remove</param>
+    /// <returns>True if the category was removed, false if it didn't exist</returns>
+    public bool RemoveCategory(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return false;
+        }
+
+        var categoryToRemove = Categories.FirstOrDefault(c =>
+            string.Equals(c, category.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (categoryToRemove != null)
+        {
+            Categories.Remove(categoryToRemove);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if the task has the specified category
+    /// </summary>
+    /// <param name="category">The category to check for</param>
+    /// <returns>True if the task has the category</returns>
+    public bool HasCategory(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return false;
+        }
+
+        return Categories.Any(c => string.Equals(c, category.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks if the task has any of the specified categories
+    /// </summary>
+    /// <param name="categories">The categories to check for</param>
+    /// <returns>True if the task has any of the specified categories</returns>
+    public bool HasAnyCategory(IEnumerable<string> categories)
+    {
+        if (categories == null)
+        {
+            return false;
+        }
+
+        return categories.Any(HasCategory);
+    }
+
+    /// <summary>
+    /// Checks if the task has all of the specified categories
+    /// </summary>
+    /// <param name="categories">The categories to check for</param>
+    /// <returns>True if the task has all of the specified categories</returns>
+    public bool HasAllCategories(IEnumerable<string> categories)
+    {
+        if (categories == null)
+        {
+            return true;
+        }
+
+        return categories.All(HasCategory);
+    }
+
+    /// <summary>
+    /// Clears all categories from the task
+    /// </summary>
+    public void ClearCategories()
+    {
+        Categories.Clear();
+    }
+
+    /// <summary>
+    /// Updates the categories for the task, replacing all existing categories
+    /// </summary>
+    /// <param name="newCategories">The new categories to set</param>
+    public void UpdateCategories(IEnumerable<string> newCategories)
+    {
+        Categories.Clear();
+        if (newCategories != null)
+        {
+            foreach (var category in newCategories.Where(c => !string.IsNullOrWhiteSpace(c)))
+            {
+                AddCategory(category);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a formatted string representation of all categories
+    /// </summary>
+    /// <returns>Comma-separated list of categories</returns>
+    public string GetCategoriesString()
+    {
+        return Categories.Any() ? string.Join(", ", Categories) : "No categories";
+    }
+
+    /// <summary>
+    /// Gets the number of categories assigned to this task
+    /// </summary>
+    public int CategoryCount => Categories.Count;
 }

@@ -498,9 +498,10 @@ public class TodoService
     /// Searches tasks by title containing the specified search term (case-insensitive)
     /// </summary>
     /// <param name="searchTerm">The search term to look for in task titles</param>
-    /// <returns>A list of tasks containing the search term in their title</returns>
+    /// <param name="includeCategories">Whether to also search in task categories</param>
+    /// <returns>A list of tasks containing the search term in their title or categories</returns>
     /// <exception cref="ArgumentException">Thrown when searchTerm is null or empty</exception>
-    public IReadOnlyList<TodoTask> SearchTasks(string searchTerm)
+    public IReadOnlyList<TodoTask> SearchTasks(string searchTerm, bool includeCategories = false)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -508,7 +509,9 @@ public class TodoService
         }
 
         return _tasks
-            .Where(task => task.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(task => task.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                          (includeCategories && task.Categories.Any(c =>
+                              c.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))))
             .ToList()
             .AsReadOnly();
     }
@@ -521,6 +524,8 @@ public class TodoService
     /// <param name="priority">Optional filter for priority level</param>
     /// <param name="includeOverdue">Optional filter to include only overdue tasks</param>
     /// <param name="includeDueToday">Optional filter to include only tasks due today</param>
+    /// <param name="includeCategories">Whether to also search in task categories</param>
+    /// <param name="filterCategories">Optional filter for tasks with specific categories</param>
     /// <returns>A list of tasks matching the search and filter criteria</returns>
     /// <exception cref="ArgumentException">Thrown when searchTerm is null or empty</exception>
     public IReadOnlyList<TodoTask> SearchTasksWithFilters(
@@ -528,7 +533,9 @@ public class TodoService
         bool? isCompleted = null,
         TaskPriority? priority = null,
         bool includeOverdue = false,
-        bool includeDueToday = false)
+        bool includeDueToday = false,
+        bool includeCategories = false,
+        IEnumerable<string>? filterCategories = null)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -536,7 +543,9 @@ public class TodoService
         }
 
         var query = _tasks
-            .Where(task => task.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+            .Where(task => task.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                          (includeCategories && task.Categories.Any(c =>
+                              c.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))));
 
         // Apply completion status filter
         if (isCompleted.HasValue)
@@ -560,6 +569,16 @@ public class TodoService
             query = query.Where(task => task.IsDueToday);
         }
 
+        // Apply category filter
+        if (filterCategories != null && filterCategories.Any())
+        {
+            var validCategories = filterCategories.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+            if (validCategories.Any())
+            {
+                query = query.Where(task => task.HasAnyCategory(validCategories));
+            }
+        }
+
         return query.ToList().AsReadOnly();
     }
 
@@ -571,13 +590,17 @@ public class TodoService
     /// <param name="includeOverdue">Optional filter to include only overdue tasks</param>
     /// <param name="includeDueToday">Optional filter to include only tasks due today</param>
     /// <param name="dueDateRange">Optional filter for tasks due within a specific date range</param>
+    /// <param name="filterCategories">Optional filter for tasks with specific categories</param>
+    /// <param name="requireAllCategories">Whether tasks must have all specified categories (true) or any (false)</param>
     /// <returns>A list of tasks matching the filter criteria</returns>
     public IReadOnlyList<TodoTask> FilterTasks(
         bool? isCompleted = null,
         TaskPriority? priority = null,
         bool includeOverdue = false,
         bool includeDueToday = false,
-        (DateTime startDate, DateTime endDate)? dueDateRange = null)
+        (DateTime startDate, DateTime endDate)? dueDateRange = null,
+        IEnumerable<string>? filterCategories = null,
+        bool requireAllCategories = false)
     {
         var query = _tasks.AsQueryable();
 
@@ -610,6 +633,23 @@ public class TodoService
                                        task.DueDate.Value.Date <= endDate.Date);
         }
 
+        // Apply category filter
+        if (filterCategories != null && filterCategories.Any())
+        {
+            var validCategories = filterCategories.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+            if (validCategories.Any())
+            {
+                if (requireAllCategories)
+                {
+                    query = query.Where(task => task.HasAllCategories(validCategories));
+                }
+                else
+                {
+                    query = query.Where(task => task.HasAnyCategory(validCategories));
+                }
+            }
+        }
+
         return query.ToList().AsReadOnly();
     }
 
@@ -620,6 +660,18 @@ public class TodoService
     /// <returns>A list of tasks containing any of the search terms</returns>
     /// <exception cref="ArgumentException">Thrown when searchTerms is null or empty</exception>
     public IReadOnlyList<TodoTask> SearchTasksMultipleTerms(params string[] searchTerms)
+    {
+        return SearchTasksMultipleTerms(searchTerms, false);
+    }
+
+    /// <summary>
+    /// Gets tasks that match any of the provided search terms (OR operation)
+    /// </summary>
+    /// <param name="searchTerms">Array of search terms</param>
+    /// <param name="includeCategories">Whether to also search in task categories</param>
+    /// <returns>A list of tasks containing any of the search terms</returns>
+    /// <exception cref="ArgumentException">Thrown when searchTerms is null or empty</exception>
+    public IReadOnlyList<TodoTask> SearchTasksMultipleTerms(string[] searchTerms, bool includeCategories)
     {
         if (searchTerms == null || searchTerms.Length == 0)
         {
@@ -634,7 +686,9 @@ public class TodoService
 
         return _tasks
             .Where(task => validTerms.Any(term =>
-                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                (includeCategories && task.Categories.Any(c =>
+                    c.Contains(term, StringComparison.OrdinalIgnoreCase)))))
             .ToList()
             .AsReadOnly();
     }
@@ -646,6 +700,18 @@ public class TodoService
     /// <returns>A list of tasks containing all search terms</returns>
     /// <exception cref="ArgumentException">Thrown when searchTerms is null or empty</exception>
     public IReadOnlyList<TodoTask> SearchTasksAllTerms(params string[] searchTerms)
+    {
+        return SearchTasksAllTerms(searchTerms, false);
+    }
+
+    /// <summary>
+    /// Gets tasks that contain all provided search terms (AND operation)
+    /// </summary>
+    /// <param name="searchTerms">Array of search terms that must all be present</param>
+    /// <param name="includeCategories">Whether to also search in task categories</param>
+    /// <returns>A list of tasks containing all search terms</returns>
+    /// <exception cref="ArgumentException">Thrown when searchTerms is null or empty</exception>
+    public IReadOnlyList<TodoTask> SearchTasksAllTerms(string[] searchTerms, bool includeCategories)
     {
         if (searchTerms == null || searchTerms.Length == 0)
         {
@@ -660,7 +726,9 @@ public class TodoService
 
         return _tasks
             .Where(task => validTerms.All(term =>
-                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                task.Title.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                (includeCategories && task.Categories.Any(c =>
+                    c.Contains(term, StringComparison.OrdinalIgnoreCase)))))
             .ToList()
             .AsReadOnly();
     }
@@ -730,6 +798,350 @@ public class TodoService
 
             _ => query
         };
+    }
+
+    // Category Management Methods
+
+    /// <summary>
+    /// Adds a new task with the specified title and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="categories">The task categories</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public TodoTask AddTask(string title, IEnumerable<string> categories)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(title));
+        }
+
+        var task = new TodoTask(title.Trim(), categories);
+        _tasks.Add(task);
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with title, priority, and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="categories">The task categories</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public TodoTask AddTask(string title, TaskPriority priority, IEnumerable<string> categories)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(title));
+        }
+
+        var task = new TodoTask(title.Trim(), priority, categories);
+        _tasks.Add(task);
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with title, priority, due date, and categories
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <param name="categories">The task categories</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public TodoTask AddTask(string title, TaskPriority priority, DateTime dueDate, IEnumerable<string> categories)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new ArgumentException("Task title cannot be null, empty, or whitespace", nameof(title));
+        }
+
+        var task = new TodoTask(title.Trim(), priority, dueDate, categories);
+        _tasks.Add(task);
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a category to an existing task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="category">The category to add</param>
+    /// <returns>True if the task was found and category was added, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when category is null, empty, or whitespace</exception>
+    public bool AddCategoryToTask(Guid taskId, string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            throw new ArgumentException("Category cannot be null, empty, or whitespace", nameof(category));
+        }
+
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            task.AddCategory(category);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Removes a category from an existing task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="category">The category to remove</param>
+    /// <returns>True if the task was found and category was removed, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when category is null, empty, or whitespace</exception>
+    public bool RemoveCategoryFromTask(Guid taskId, string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            throw new ArgumentException("Category cannot be null, empty, or whitespace", nameof(category));
+        }
+
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            return task.RemoveCategory(category);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Updates all categories for a task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="categories">The new categories for the task</param>
+    /// <returns>True if the task was found and categories were updated, false otherwise</returns>
+    public bool UpdateTaskCategories(Guid taskId, IEnumerable<string> categories)
+    {
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            task.UpdateCategories(categories);
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Clears all categories from a task
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <returns>True if the task was found and categories were cleared, false otherwise</returns>
+    public bool ClearTaskCategories(Guid taskId)
+    {
+        var task = GetTask(taskId);
+        if (task != null)
+        {
+            task.ClearCategories();
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Gets all tasks that have the specified category
+    /// </summary>
+    /// <param name="category">The category to filter by</param>
+    /// <returns>A list of tasks with the specified category</returns>
+    /// <exception cref="ArgumentException">Thrown when category is null, empty, or whitespace</exception>
+    public IReadOnlyList<TodoTask> GetTasksByCategory(string category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            throw new ArgumentException("Category cannot be null, empty, or whitespace", nameof(category));
+        }
+
+        return _tasks.Where(t => t.HasCategory(category)).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks that have any of the specified categories
+    /// </summary>
+    /// <param name="categories">The categories to filter by</param>
+    /// <returns>A list of tasks with any of the specified categories</returns>
+    /// <exception cref="ArgumentException">Thrown when categories is null or empty</exception>
+    public IReadOnlyList<TodoTask> GetTasksByAnyCategory(IEnumerable<string> categories)
+    {
+        if (categories == null || !categories.Any())
+        {
+            throw new ArgumentException("At least one category must be provided", nameof(categories));
+        }
+
+        var validCategories = categories.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+        if (!validCategories.Any())
+        {
+            throw new ArgumentException("At least one non-empty category must be provided", nameof(categories));
+        }
+
+        return _tasks.Where(t => t.HasAnyCategory(validCategories)).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks that have all of the specified categories
+    /// </summary>
+    /// <param name="categories">The categories that must all be present</param>
+    /// <returns>A list of tasks with all specified categories</returns>
+    /// <exception cref="ArgumentException">Thrown when categories is null or empty</exception>
+    public IReadOnlyList<TodoTask> GetTasksByAllCategories(IEnumerable<string> categories)
+    {
+        if (categories == null || !categories.Any())
+        {
+            throw new ArgumentException("At least one category must be provided", nameof(categories));
+        }
+
+        var validCategories = categories.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+        if (!validCategories.Any())
+        {
+            throw new ArgumentException("At least one non-empty category must be provided", nameof(categories));
+        }
+
+        return _tasks.Where(t => t.HasAllCategories(validCategories)).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all unique categories used across all tasks
+    /// </summary>
+    /// <returns>A list of all unique categories</returns>
+    public IReadOnlyList<string> GetAllCategories()
+    {
+        return _tasks
+            .SelectMany(t => t.Categories)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            .AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks that don't have any categories
+    /// </summary>
+    /// <returns>A list of tasks without categories</returns>
+    public IReadOnlyList<TodoTask> GetTasksWithoutCategories()
+    {
+        return _tasks.Where(t => !t.Categories.Any()).ToList().AsReadOnly();
+    }
+
+    /// <summary>
+    /// Gets all tasks that have at least one category
+    /// </summary>
+    /// <returns>A list of tasks with categories</returns>
+    public IReadOnlyList<TodoTask> GetTasksWithCategories()
+    {
+        return _tasks.Where(t => t.Categories.Any()).ToList().AsReadOnly();
+    }
+
+    // Async Category Management Methods
+
+    /// <summary>
+    /// Adds a new task with categories and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="categories">The task categories</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title, IEnumerable<string> categories)
+    {
+        var task = AddTask(title, categories);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with priority and categories and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="categories">The task categories</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title, TaskPriority priority, IEnumerable<string> categories)
+    {
+        var task = AddTask(title, priority, categories);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a new task with priority, due date, and categories and automatically saves to storage
+    /// </summary>
+    /// <param name="title">The task title</param>
+    /// <param name="priority">The task priority</param>
+    /// <param name="dueDate">The task due date</param>
+    /// <param name="categories">The task categories</param>
+    /// <returns>The created task</returns>
+    /// <exception cref="ArgumentException">Thrown when title is null, empty, or whitespace</exception>
+    public async Task<TodoTask> AddTaskAsync(string title, TaskPriority priority, DateTime dueDate, IEnumerable<string> categories)
+    {
+        var task = AddTask(title, priority, dueDate, categories);
+        await SaveTasksAsync();
+        return task;
+    }
+
+    /// <summary>
+    /// Adds a category to a task and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="category">The category to add</param>
+    /// <returns>True if the task was found and category was added, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when category is null, empty, or whitespace</exception>
+    public async Task<bool> AddCategoryToTaskAsync(Guid taskId, string category)
+    {
+        var result = AddCategoryToTask(taskId, category);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Removes a category from a task and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="category">The category to remove</param>
+    /// <returns>True if the task was found and category was removed, false otherwise</returns>
+    /// <exception cref="ArgumentException">Thrown when category is null, empty, or whitespace</exception>
+    public async Task<bool> RemoveCategoryFromTaskAsync(Guid taskId, string category)
+    {
+        var result = RemoveCategoryFromTask(taskId, category);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Updates task categories and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <param name="categories">The new categories for the task</param>
+    /// <returns>True if the task was found and categories were updated, false otherwise</returns>
+    public async Task<bool> UpdateTaskCategoriesAsync(Guid taskId, IEnumerable<string> categories)
+    {
+        var result = UpdateTaskCategories(taskId, categories);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Clears task categories and automatically saves to storage
+    /// </summary>
+    /// <param name="taskId">The ID of the task to update</param>
+    /// <returns>True if the task was found and categories were cleared, false otherwise</returns>
+    public async Task<bool> ClearTaskCategoriesAsync(Guid taskId)
+    {
+        var result = ClearTaskCategories(taskId);
+        if (result)
+        {
+            await SaveTasksAsync();
+        }
+        return result;
     }
 }
 

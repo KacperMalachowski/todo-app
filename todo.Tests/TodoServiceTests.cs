@@ -699,7 +699,7 @@ public class TodoServiceTests
 
         // Assert
         Assert.All(filteredTasks, task => Assert.Equal(priority, task.Priority));
-        
+
         if (priority == todo.app.Models.TaskPriority.Medium)
         {
             Assert.Equal(2, filteredTasks.Count);
@@ -1128,7 +1128,7 @@ public class TodoServiceTests
         var service = new TodoService();
         var startDate = DateTime.Today;
         var endDate = DateTime.Today.AddDays(2);
-        
+
         var taskInRange = service.AddTask("Task in range", DateTime.Today.AddDays(1));
         var taskOutOfRange = service.AddTask("Task out of range", DateTime.Today.AddDays(5));
 
@@ -1293,7 +1293,7 @@ public class TodoServiceTests
         var task1 = service.AddTask("Task 1");
         var task2 = service.AddTask("Task 2");
         var task3 = service.AddTask("Task 3");
-        
+
         service.ToggleTaskCompletion(task2.Id);
 
         // Act
@@ -1325,5 +1325,516 @@ public class TodoServiceTests
         Assert.Equal("C Task", results[0].Title); // Low priority first
         Assert.Equal("A Task", results[1].Title); // High priority, A comes before B
         Assert.Equal("B Task", results[2].Title); // High priority, B comes after A
+    }
+
+    // Category Management Tests
+
+    [Fact]
+    public void AddTask_WithCategories_ShouldCreateTaskWithCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        var categories = new[] { "work", "urgent", "project" };
+
+        // Act
+        var task = service.AddTask("Test task", categories);
+
+        // Assert
+        Assert.Equal(3, task.Categories.Count);
+        Assert.Contains("work", task.Categories);
+        Assert.Contains("urgent", task.Categories);
+        Assert.Contains("project", task.Categories);
+    }
+
+    [Fact]
+    public void AddTask_WithPriorityAndCategories_ShouldCreateTaskWithBoth()
+    {
+        // Arrange
+        var service = new TodoService();
+        var categories = new[] { "work", "urgent" };
+
+        // Act
+        var task = service.AddTask("Test task", todo.app.Models.TaskPriority.High, categories);
+
+        // Assert
+        Assert.Equal(todo.app.Models.TaskPriority.High, task.Priority);
+        Assert.Equal(2, task.Categories.Count);
+        Assert.Contains("work", task.Categories);
+        Assert.Contains("urgent", task.Categories);
+    }
+
+    [Fact]
+    public void AddTask_WithPriorityDueDateAndCategories_ShouldCreateTaskWithAll()
+    {
+        // Arrange
+        var service = new TodoService();
+        var dueDate = DateTime.Now.AddDays(3);
+        var categories = new[] { "work", "important" };
+
+        // Act
+        var task = service.AddTask("Test task", todo.app.Models.TaskPriority.Medium, dueDate, categories);
+
+        // Assert
+        Assert.Equal(todo.app.Models.TaskPriority.Medium, task.Priority);
+        Assert.Equal(dueDate.Date, task.DueDate?.Date);
+        Assert.Equal(2, task.Categories.Count);
+        Assert.Contains("work", task.Categories);
+        Assert.Contains("important", task.Categories);
+    }
+
+    [Fact]
+    public void AddCategoryToTask_WithValidTaskAndCategory_ShouldAddCategory()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test task");
+
+        // Act
+        var result = service.AddCategoryToTask(task.Id, "work");
+
+        // Assert
+        Assert.True(result);
+        Assert.Contains("work", task.Categories);
+    }
+
+    [Fact]
+    public void AddCategoryToTask_WithInvalidTaskId_ShouldReturnFalse()
+    {
+        // Arrange
+        var service = new TodoService();
+
+        // Act
+        var result = service.AddCategoryToTask(Guid.NewGuid(), "work");
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void AddCategoryToTask_WithEmptyCategory_ShouldThrowException()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test task");
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => service.AddCategoryToTask(task.Id, ""));
+    }
+
+    [Fact]
+    public void RemoveCategoryFromTask_WithExistingCategory_ShouldRemoveCategory()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test task", new[] { "work", "urgent" });
+
+        // Act
+        var result = service.RemoveCategoryFromTask(task.Id, "work");
+
+        // Assert
+        Assert.True(result);
+        Assert.DoesNotContain("work", task.Categories);
+        Assert.Contains("urgent", task.Categories);
+    }
+
+    [Fact]
+    public void RemoveCategoryFromTask_WithNonExistentCategory_ShouldReturnFalse()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test task", new[] { "work" });
+
+        // Act
+        var result = service.RemoveCategoryFromTask(task.Id, "nonexistent");
+
+        // Assert
+        Assert.False(result);
+        Assert.Contains("work", task.Categories);
+    }
+
+    [Fact]
+    public void UpdateTaskCategories_WithNewCategories_ShouldReplaceAllCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test task", new[] { "old1", "old2" });
+        var newCategories = new[] { "new1", "new2", "new3" };
+
+        // Act
+        var result = service.UpdateTaskCategories(task.Id, newCategories);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(3, task.Categories.Count);
+        Assert.Contains("new1", task.Categories);
+        Assert.Contains("new2", task.Categories);
+        Assert.Contains("new3", task.Categories);
+        Assert.DoesNotContain("old1", task.Categories);
+        Assert.DoesNotContain("old2", task.Categories);
+    }
+
+    [Fact]
+    public void ClearTaskCategories_WithExistingCategories_ShouldRemoveAllCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = service.AddTask("Test task", new[] { "work", "urgent", "project" });
+
+        // Act
+        var result = service.ClearTaskCategories(task.Id);
+
+        // Assert
+        Assert.True(result);
+        Assert.Empty(task.Categories);
+    }
+
+    [Fact]
+    public void GetTasksByCategory_WithExistingCategory_ShouldReturnMatchingTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "work", "urgent" });
+        service.AddTask("Task 2", new[] { "personal" });
+        service.AddTask("Task 3", new[] { "work", "project" });
+
+        // Act
+        var workTasks = service.GetTasksByCategory("work");
+
+        // Assert
+        Assert.Equal(2, workTasks.Count);
+        Assert.Contains(workTasks, t => t.Title == "Task 1");
+        Assert.Contains(workTasks, t => t.Title == "Task 3");
+    }
+
+    [Fact]
+    public void GetTasksByCategory_WithCaseInsensitive_ShouldReturnMatchingTasks()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "Work", "URGENT" });
+
+        // Act
+        var workTasks = service.GetTasksByCategory("work");
+
+        // Assert
+        Assert.Single(workTasks);
+        Assert.Equal("Task 1", workTasks[0].Title);
+    }
+
+    [Fact]
+    public void GetTasksByAnyCategory_WithMultipleCategories_ShouldReturnTasksWithAnyCategory()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "work" });
+        service.AddTask("Task 2", new[] { "personal" });
+        service.AddTask("Task 3", new[] { "project" });
+        service.AddTask("Task 4", new[] { "other" });
+
+        // Act
+        var tasks = service.GetTasksByAnyCategory(new[] { "work", "personal" });
+
+        // Assert
+        Assert.Equal(2, tasks.Count);
+        Assert.Contains(tasks, t => t.Title == "Task 1");
+        Assert.Contains(tasks, t => t.Title == "Task 2");
+    }
+
+    [Fact]
+    public void GetTasksByAllCategories_WithMultipleCategories_ShouldReturnTasksWithAllCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "work", "urgent" });
+        service.AddTask("Task 2", new[] { "work" });
+        service.AddTask("Task 3", new[] { "work", "urgent", "project" });
+
+        // Act
+        var tasks = service.GetTasksByAllCategories(new[] { "work", "urgent" });
+
+        // Assert
+        Assert.Equal(2, tasks.Count);
+        Assert.Contains(tasks, t => t.Title == "Task 1");
+        Assert.Contains(tasks, t => t.Title == "Task 3");
+    }
+
+    [Fact]
+    public void GetAllCategories_WithMultipleTasks_ShouldReturnUniqueCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "work", "urgent" });
+        service.AddTask("Task 2", new[] { "personal", "urgent" });
+        service.AddTask("Task 3", new[] { "project" });
+
+        // Act
+        var categories = service.GetAllCategories();
+
+        // Assert
+        Assert.Equal(4, categories.Count);
+        Assert.Contains("work", categories);
+        Assert.Contains("urgent", categories);
+        Assert.Contains("personal", categories);
+        Assert.Contains("project", categories);
+    }
+
+    [Fact]
+    public void GetAllCategories_WithDuplicateCategories_ShouldReturnUniqueCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "Work", "URGENT" });
+        service.AddTask("Task 2", new[] { "work", "urgent" });
+
+        // Act
+        var categories = service.GetAllCategories();
+
+        // Assert
+        Assert.Equal(2, categories.Count);
+        // Check that case-insensitive duplicates are removed, preserving first occurrence case
+        Assert.Contains("URGENT", categories);
+        Assert.Contains("Work", categories);
+    }
+
+    [Fact]
+    public void GetTasksWithoutCategories_ShouldReturnTasksWithNoCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1");
+        service.AddTask("Task 2", new[] { "work" });
+        service.AddTask("Task 3");
+
+        // Act
+        var tasks = service.GetTasksWithoutCategories();
+
+        // Assert
+        Assert.Equal(2, tasks.Count);
+        Assert.Contains(tasks, t => t.Title == "Task 1");
+        Assert.Contains(tasks, t => t.Title == "Task 3");
+    }
+
+    [Fact]
+    public void GetTasksWithCategories_ShouldReturnTasksWithAnyCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1");
+        service.AddTask("Task 2", new[] { "work" });
+        service.AddTask("Task 3", new[] { "personal" });
+
+        // Act
+        var tasks = service.GetTasksWithCategories();
+
+        // Assert
+        Assert.Equal(2, tasks.Count);
+        Assert.Contains(tasks, t => t.Title == "Task 2");
+        Assert.Contains(tasks, t => t.Title == "Task 3");
+    }
+
+    [Fact]
+    public void SearchTasks_WithCategoriesEnabled_ShouldSearchInCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "important", "work" });
+        service.AddTask("Task 2 with important word", new string[0]);
+        service.AddTask("Task 3", new[] { "other" });
+
+        // Act
+        var results = service.SearchTasks("important", includeCategories: true);
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title == "Task 1");
+        Assert.Contains(results, t => t.Title == "Task 2 with important word");
+    }
+
+    [Fact]
+    public void SearchTasks_WithCategoriesDisabled_ShouldOnlySearchInTitles()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "important", "work" });
+        service.AddTask("Task 2 with important word", new string[0]);
+
+        // Act
+        var results = service.SearchTasks("important", includeCategories: false);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("Task 2 with important word", results[0].Title);
+    }
+
+    [Fact]
+    public void SearchTasksWithFilters_WithCategoryFilter_ShouldApplyCategoryFilter()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Work Task 1", new[] { "work", "urgent" });
+        service.AddTask("Work Task 2", new[] { "work" });
+        service.AddTask("Personal Task", new[] { "personal" });
+
+        // Act
+        var results = service.SearchTasksWithFilters("Task", filterCategories: new[] { "work" });
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title == "Work Task 1");
+        Assert.Contains(results, t => t.Title == "Work Task 2");
+    }
+
+    [Fact]
+    public void FilterTasks_WithCategoryFilter_ShouldReturnTasksWithSpecifiedCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "work", "urgent" });
+        service.AddTask("Task 2", new[] { "personal" });
+        service.AddTask("Task 3", new[] { "work", "project" });
+
+        // Act
+        var results = service.FilterTasks(filterCategories: new[] { "work" });
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title == "Task 1");
+        Assert.Contains(results, t => t.Title == "Task 3");
+    }
+
+    [Fact]
+    public void FilterTasks_WithRequireAllCategories_ShouldReturnTasksWithAllCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "work", "urgent" });
+        service.AddTask("Task 2", new[] { "work" });
+        service.AddTask("Task 3", new[] { "work", "urgent", "project" });
+
+        // Act
+        var results = service.FilterTasks(filterCategories: new[] { "work", "urgent" }, requireAllCategories: true);
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title == "Task 1");
+        Assert.Contains(results, t => t.Title == "Task 3");
+    }
+
+    [Fact]
+    public void SearchTasksMultipleTerms_WithCategoriesEnabled_ShouldSearchInCategories()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "important" });
+        service.AddTask("urgent Task 2", new string[0]);
+        service.AddTask("Task 3", new[] { "other" });
+
+        // Act
+        var results = service.SearchTasksMultipleTerms(new[] { "important", "urgent" }, includeCategories: true);
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title == "Task 1");
+        Assert.Contains(results, t => t.Title == "urgent Task 2");
+    }
+
+    [Fact]
+    public void SearchTasksAllTerms_WithCategoriesEnabled_ShouldRequireAllTerms()
+    {
+        // Arrange
+        var service = new TodoService();
+        service.AddTask("Task 1", new[] { "important", "urgent" });
+        service.AddTask("important urgent Task 2", new string[0]);
+        service.AddTask("Task 3", new[] { "important" });
+
+        // Act
+        var results = service.SearchTasksAllTerms(new[] { "important", "urgent" }, includeCategories: true);
+
+        // Assert
+        Assert.Equal(2, results.Count);
+        Assert.Contains(results, t => t.Title == "Task 1");
+        Assert.Contains(results, t => t.Title == "important urgent Task 2");
+    }
+
+    // Async Category Management Tests
+
+    [Fact]
+    public async Task AddTaskAsync_WithCategories_ShouldCreateTaskAndSave()
+    {
+        // Arrange
+        var service = new TodoService();
+        var categories = new[] { "work", "urgent" };
+
+        // Act
+        var task = await service.AddTaskAsync("Test task", categories);
+
+        // Assert
+        Assert.Equal(2, task.Categories.Count);
+        Assert.Contains("work", task.Categories);
+        Assert.Contains("urgent", task.Categories);
+    }
+
+    [Fact]
+    public async Task AddCategoryToTaskAsync_WithValidTask_ShouldAddCategoryAndSave()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = await service.AddTaskAsync("Test task");
+
+        // Act
+        var result = await service.AddCategoryToTaskAsync(task.Id, "work");
+
+        // Assert
+        Assert.True(result);
+        Assert.Contains("work", task.Categories);
+    }
+
+    [Fact]
+    public async Task RemoveCategoryFromTaskAsync_WithExistingCategory_ShouldRemoveCategoryAndSave()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = await service.AddTaskAsync("Test task", new[] { "work", "urgent" });
+
+        // Act
+        var result = await service.RemoveCategoryFromTaskAsync(task.Id, "work");
+
+        // Assert
+        Assert.True(result);
+        Assert.DoesNotContain("work", task.Categories);
+        Assert.Contains("urgent", task.Categories);
+    }
+
+    [Fact]
+    public async Task UpdateTaskCategoriesAsync_WithNewCategories_ShouldUpdateAndSave()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = await service.AddTaskAsync("Test task", new[] { "old1", "old2" });
+        var newCategories = new[] { "new1", "new2" };
+
+        // Act
+        var result = await service.UpdateTaskCategoriesAsync(task.Id, newCategories);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(2, task.Categories.Count);
+        Assert.Contains("new1", task.Categories);
+        Assert.Contains("new2", task.Categories);
+    }
+
+    [Fact]
+    public async Task ClearTaskCategoriesAsync_WithExistingCategories_ShouldClearAndSave()
+    {
+        // Arrange
+        var service = new TodoService();
+        var task = await service.AddTaskAsync("Test task", new[] { "work", "urgent" });
+
+        // Act
+        var result = await service.ClearTaskCategoriesAsync(task.Id);
+
+        // Assert
+        Assert.True(result);
+        Assert.Empty(task.Categories);
     }
 }
