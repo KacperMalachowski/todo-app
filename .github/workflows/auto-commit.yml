@@ -6,7 +6,7 @@ on:
   workflow_dispatch:         # Allow manual trigger
 
 jobs:
-  auto-commit:
+  auto-commit: 
     runs-on: ubuntu-latest
 
     steps:
